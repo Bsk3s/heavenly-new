@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, Animated, PanResponder, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Pressable, Animated, PanResponder, SafeAreaView, ScrollView, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Slider from '@react-native-community/slider';
 import { X, Play, Clock, Star, Pause, Check, XCircle, BookOpen, ChevronDown } from 'lucide-react-native';
@@ -39,6 +39,7 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showOverallProgress, setShowOverallProgress] = useState(false);
+  const [booksExpanded, setBooksExpanded] = useState(false);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -425,6 +426,19 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
       .filter(Boolean)
       .join(" • ");
 
+    // Get appropriate goal message based on progress
+    const getGoalMessage = () => {
+      if (todayProgress === 0) {
+        return `Let's start reading today! Your goal is ${dailyGoal} ${dailyGoal === 1 ? 'chapter' : 'chapters'}`;
+      } else if (todayProgress < dailyGoal) {
+        return `Read ${dailyGoal - todayProgress} more ${dailyGoal - todayProgress === 1 ? 'chapter' : 'chapters'} to reach your daily goal`;
+      } else if (todayProgress === dailyGoal) {
+        return "Daily goal complete! Great job! ✨";
+      } else {
+        return `Amazing! You've read ${todayProgress - dailyGoal} extra ${todayProgress - dailyGoal === 1 ? 'chapter' : 'chapters'} today! 👍`;
+      }
+    };
+
     return (
       <View className="px-6">
         {/* Add the display text near the top */}
@@ -449,90 +463,101 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
             <View className="flex-row justify-between items-center mb-3">
               <Text className="text-base text-gray-800">Daily Goal</Text>
               <Text className={`text-sm ${hasReadToday ? 'text-green-600' : 'text-gray-600'}`}>
-                {todayProgress} of {dailyGoal} {todayProgress === 1 ? 'chapter' : 'chapters'}
+                {todayProgress} of {dailyGoal} {dailyGoal === 1 ? 'chapter' : 'chapters'}
               </Text>
             </View>
-            {hasReadToday && todayProgress >= dailyGoal ? (
-              <View className="bg-green-50 rounded-xl p-3 flex-row items-center">
-                <Check size={20} color="#22C55E" />
-                <Text className="ml-2 text-green-700 font-medium">
-                  {todayProgress - dailyGoal > 0 
-                    ? `Amazing! You've read ${todayProgress - dailyGoal} extra ${todayProgress - dailyGoal === 1 ? 'chapter' : 'chapters'} today! 🌟` 
-                    : 'Daily goal complete! Great job! ✨'}
-                </Text>
-              </View>
-            ) : (
-              <View className="bg-blue-50 rounded-xl p-3">
-                <Text className="text-blue-700">
-                  {todayProgress > 0
-                    ? `Read ${todayProgress} more ${todayProgress === 1 ? 'chapter' : 'chapters'} to reach your daily goal`
-                    : "Let's start reading today! Select a book below"}
-                </Text>
-              </View>
-            )}
+            <View className={`${todayProgress >= dailyGoal ? 'bg-green-50' : 'bg-blue-50'} rounded-xl p-3 flex-row items-center`}>
+              {todayProgress >= dailyGoal && <Check size={20} color="#22C55E" className="mr-2" />}
+              <Text className={`${todayProgress >= dailyGoal ? 'text-green-700' : 'text-blue-700'} font-medium`}>
+                {getGoalMessage()}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Book Selection */}
+        {/* Book Selection - Now with collapsible section */}
         <View className="mb-6">
-          <Text className="text-sm font-medium text-gray-600 mb-2">Select Book</Text>
-          <View className="space-y-2">
-            {/* Testament Selector */}
-            <View className="flex-row gap-2 mb-3">
-              {['Old Testament', 'New Testament'].map((testament) => (
-                <TouchableOpacity
-                  key={testament}
-                  className={`py-2 px-4 rounded-full ${
-                    selectedTestament === testament ? 'bg-blue-500' : 'bg-gray-100'
-                  }`}
-                  onPress={() => setSelectedTestament(testament)}
-                >
-                  <Text
-                    className={`text-sm ${
-                      selectedTestament === testament ? 'text-white' : 'text-gray-600'
+          <TouchableOpacity 
+            className="flex-row items-center justify-between mb-2"
+            onPress={() => setBooksExpanded(!booksExpanded)}
+          >
+            <Text className="text-sm font-medium text-gray-600">Select Book</Text>
+            <ChevronDown 
+              size={16} 
+              color="#6B7280" 
+              style={{ 
+                transform: [{ rotate: booksExpanded ? '180deg' : '0deg' }]
+              }} 
+            />
+          </TouchableOpacity>
+          
+          {booksExpanded && (
+            <View className="space-y-2">
+              {/* Testament Selector */}
+              <View className="flex-row gap-2 mb-3">
+                {['Old Testament', 'New Testament'].map((testament) => (
+                  <TouchableOpacity
+                    key={testament}
+                    className={`py-2 px-4 rounded-full ${
+                      selectedTestament === testament ? 'bg-blue-500' : 'bg-gray-100'
                     }`}
+                    onPress={() => setSelectedTestament(testament)}
                   >
-                    {testament}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Books Grid */}
-            <ScrollView className="max-h-48">
-              <View className="flex-row flex-wrap gap-2">
-                {Object.entries(BIBLE_BOOKS[selectedTestament]).map(([book, chapters]) => {
-                  const isRead = readChapters[book]?.length === chapters;
-                  const isPartiallyRead = readChapters[book]?.length > 0;
-                  const isLastRead = activity.lastReadBook === book;
-                  
-                  return (
-                    <TouchableOpacity
-                      key={book}
-                      className={`py-2 px-4 rounded-lg ${
-                        isLastRead ? 'bg-blue-100' :
-                        isRead ? 'bg-green-100' : 
-                        isPartiallyRead ? 'bg-green-50' :
-                        'bg-gray-50'
+                    <Text
+                      className={`text-sm ${
+                        selectedTestament === testament ? 'text-white' : 'text-gray-600'
                       }`}
-                      onPress={() => setSelectedBook(book)}
                     >
-                      <Text
-                        className={`text-sm ${
-                          isLastRead ? 'text-blue-700' :
-                          isRead ? 'text-green-700' :
-                          isPartiallyRead ? 'text-green-600' :
-                          'text-gray-700'
-                        }`}
-                      >
-                        {book}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                      {testament}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </ScrollView>
-          </View>
+
+              {/* Books Grid - Now in a scrollable container with fixed height */}
+              <View className="max-h-48">
+                <ScrollView>
+                  <View className="flex-row flex-wrap gap-2">
+                    {Object.entries(BIBLE_BOOKS[selectedTestament]).map(([book, chapters]) => {
+                      const isRead = readChapters[book]?.length === chapters;
+                      const isPartiallyRead = readChapters[book]?.length > 0;
+                      const isLastRead = activity.lastReadBook === book;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={book}
+                          className={`py-2 px-4 rounded-lg ${
+                            isLastRead ? 'bg-blue-100' :
+                            isRead ? 'bg-green-100' : 
+                            isPartiallyRead ? 'bg-green-50' :
+                            'bg-gray-50'
+                          }`}
+                          onPress={() => {
+                            setSelectedBook(book);
+                            // Auto-scroll to show chapters when a book is selected
+                            if (!selectedBook) {
+                              setTimeout(() => setBooksExpanded(false), 300);
+                            }
+                          }}
+                        >
+                          <Text
+                            className={`text-sm ${
+                              isLastRead ? 'text-blue-700' :
+                              isRead ? 'text-green-700' :
+                              isPartiallyRead ? 'text-green-600' :
+                              'text-gray-700'
+                            }`}
+                          >
+                            {book}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Selected Book Details */}

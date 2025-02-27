@@ -11,7 +11,8 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
   
   // Ring configuration
   const size = customSize || 90;
-  const strokeWidth = isCalendarView ? size * 0.11 : (hideText ? size * 0.12 : size * 0.11);
+  // Precise stroke width for clean rings
+  const strokeWidth = isCalendarView ? size * 0.12 : (hideText ? size * 0.15 : size * 0.13);
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   
@@ -65,29 +66,33 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
   // Convert legacy color names to new color names
   const normalizedColorName = colorNameMap[color] || color;
   
-  // Updated color mappings to match Tailwind colors
+  // Clean, vibrant colors with proper opacity
   const colorMap = {
     rose: {
-      ring: isCalendarView ? '#f43f5e' : '#f43f5e',
-      bg: isCalendarView ? 'rgba(244, 63, 94, 0.3)' : '#fff1f2'
+      ring: '#ff2d55', // Apple's vibrant red
+      bg: isCalendarView ? 'rgba(255, 45, 85, 0.15)' : '#fff1f2',
+      inactiveRing: 'rgba(255, 45, 85, 0.15)'
     },
     blue: {
-      ring: isCalendarView ? '#60a5fa' : '#60a5fa',
-      bg: isCalendarView ? 'rgba(96, 165, 250, 0.3)' : '#dbeafe'
+      ring: '#0a84ff', // Apple's system blue - more vibrant
+      bg: isCalendarView ? 'rgba(10, 132, 255, 0.15)' : '#dbeafe',
+      inactiveRing: 'rgba(10, 132, 255, 0.15)'
     },
     amber: {
-      ring: isCalendarView ? '#f59e0b' : '#f59e0b',
-      bg: isCalendarView ? 'rgba(245, 158, 11, 0.3)' : '#fffbeb'
+      ring: '#ffcc00', // Bright yellow
+      bg: isCalendarView ? 'rgba(255, 204, 0, 0.15)' : '#fffbeb',
+      inactiveRing: 'rgba(255, 204, 0, 0.15)'
     },
     indigo: {
-      ring: isCalendarView ? '#6366f1' : '#6366f1',
-      bg: isCalendarView ? 'rgba(99, 102, 241, 0.3)' : '#eef2ff'
+      ring: '#bf5af2', // Apple's system purple
+      bg: isCalendarView ? 'rgba(191, 90, 242, 0.15)' : '#eef2ff',
+      inactiveRing: 'rgba(191, 90, 242, 0.15)'
     }
   };
   
   // Use the activity's color or fallback to blue
   const colors = colorMap[normalizedColorName] || colorMap.blue;
-  
+
   // Format duration for display
   const formatDuration = (durationText) => {
     if (!durationText) return '';
@@ -102,42 +107,37 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
     return `${current}m / ${goal}m`;
   };
 
+  // Determine if this is an empty/inactive ring for calendar view
+  const isEmptyRing = isCalendarView && calculatedProgress <= 0;
+
   return (
     <View style={{ width: hideText ? size : size * 1.11, alignItems: 'center' }}>
       <View className="relative">
         <Svg width={size} height={size}>
-          {/* Background circle with darker opacity */}
+          {/* Background circle */}
           <Circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={colors.bg}
+            stroke={colors.inactiveRing}
             strokeWidth={strokeWidth}
             fill="transparent"
-            opacity={1} // Full opacity for better visibility
-          />
-          
-          {/* Progress circle with sharp edges */}
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={colors.ring}
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={progressOffset}
             strokeLinecap="butt"
-            transform={`rotate(-90, ${size / 2}, ${size / 2})`}
-            fill="none"
           />
           
-          {/* Progress end dot - larger for better visibility */}
-          {calculatedProgress > 0 && calculatedProgress < 100 && isCalendarView && (
+          {/* Progress circle */}
+          {calculatedProgress > 0 && (
             <Circle
-              cx={size / 2 + radius * Math.cos((calculatedProgress / 100 * 2 * Math.PI) - Math.PI / 2)}
-              cy={size / 2 + radius * Math.sin((calculatedProgress / 100 * 2 * Math.PI) - Math.PI / 2)}
-              r={strokeWidth / 1.8} // Larger dot
-              fill={colors.ring}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={colors.ring}
+              strokeWidth={strokeWidth}
+              strokeDasharray={circumference}
+              strokeDashoffset={progressOffset}
+              strokeLinecap="butt"
+              transform={`rotate(-90, ${size / 2}, ${size / 2})`}
+              fill="none"
             />
           )}
         </Svg>

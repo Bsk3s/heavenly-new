@@ -94,7 +94,12 @@ const CustomCalendar = ({
   // Calculate dimensions
   const screenWidth = Dimensions.get('window').width;
   const calendarWidth = screenWidth - 32; // 16px padding on each side
-  const dayWidth = calendarWidth / 7;
+  
+  // Group days into weeks for better layout control
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
   
   return (
     <View style={[{ width: calendarWidth, alignSelf: 'center' }, calendarStyle]}>
@@ -104,57 +109,72 @@ const CustomCalendar = ({
         alignItems: 'center', 
         justifyContent: 'space-between', 
         paddingHorizontal: 16,
-        marginBottom: 8
+        marginBottom: 20
       }, headerStyle]}>
         <TouchableOpacity onPress={() => changeMonth(-1)} style={{ padding: 8 }}>
-          <ChevronLeft size={24} color="#000" />
+          <ChevronLeft size={24} color="#333333" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 22, fontWeight: '600', color: '#111827' }}>
+        <Text style={{ fontSize: 24, fontWeight: '600', color: '#111827' }}>
           {monthYear}
         </Text>
         <TouchableOpacity onPress={() => changeMonth(1)} style={{ padding: 8 }}>
-          <ChevronRight size={24} color="#000" />
+          <ChevronRight size={24} color="#333333" />
         </TouchableOpacity>
       </View>
       
       {/* Weekday headers */}
-      <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+      <View style={{ 
+        flexDirection: 'row', 
+        marginBottom: 14,
+      }}>
         {weekDays.map((day, index) => (
           <View 
             key={index} 
             style={{ 
-              width: dayWidth,
+              flex: 1,
               alignItems: 'center'
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: '500', color: '#9ca3af' }}>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: '#9ca3af' }}>
               {day}
             </Text>
           </View>
         ))}
       </View>
       
-      {/* Calendar grid */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {days.map((day) => (
+      {/* Calendar grid - organized by weeks for better layout control */}
+      <View style={{ width: '100%' }}>
+        {weeks.map((week, weekIndex) => (
           <View 
-            key={day.id} 
+            key={`week-${weekIndex}`} 
             style={{ 
-              width: dayWidth,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: 2,
-              paddingHorizontal: 0,
-            }}
-          >
-            {renderDay ? renderDay(day) : (
-              <Text style={{ 
-                fontSize: 11, 
-                color: day.state === 'disabled' ? '#e5e7eb' : '#4b5563'
-              }}>
-                {day.date?.day || ''}
-              </Text>
-            )}
+              flexDirection: 'row',
+              width: '100%',
+              marginBottom: 8,
+            }}>
+            {week.map((day) => (
+              <View 
+                key={day.id} 
+                style={{ 
+                  flex: 1,
+                }}
+              >
+                {renderDay ? renderDay(day) : (
+                  <View style={{ 
+                    height: 70,
+                    alignItems: 'center', 
+                    justifyContent: 'center' 
+                  }}>
+                    <Text style={{ 
+                      fontSize: 12,
+                      color: day.state === 'disabled' ? '#e5e7eb' : '#4b5563'
+                    }}>
+                      {day.date?.day || ''}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
           </View>
         ))}
       </View>
