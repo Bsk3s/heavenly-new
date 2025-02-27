@@ -3,18 +3,28 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Star } from 'lucide-react-native';
 
-const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, isCalendarView = false, date }) => {
-  const { title, progress, duration, streak, color = "blue", icon: Icon } = activity;
+const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, isCalendarView = false, date, color: propColor }) => {
+  const { title, progress, duration, streak, color: activityColor = "blue", icon: Icon } = activity;
+  
+  // Use propColor if provided, otherwise fall back to activityColor
+  const color = propColor || activityColor;
   
   // Ring configuration
   const size = customSize || 90;
-  const strokeWidth = isCalendarView ? size * 0.11 : (hideText ? size * 0.12 : size * 0.11); // Much thicker stroke for calendar
+  const strokeWidth = isCalendarView ? size * 0.11 : (hideText ? size * 0.12 : size * 0.11);
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   
   // Calculate progress based on time spent vs goal time
   let calculatedProgress = progress;
-  if (duration) {
+  
+  // Handle Bible reading progress first
+  if (activity.type === 'bible') {
+    const todayProgress = activity.todayProgress || 0;
+    calculatedProgress = todayProgress > 0 ? 100 : 0;
+  }
+  // Handle other duration-based activities
+  else if (duration) {
     const parts = duration.split('/');
     if (parts.length > 1) {
       const currentPart = parts[0].trim();
@@ -22,10 +32,6 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
       
       if (currentPart === 'Done') {
         calculatedProgress = 100;
-      } else if (activity.type === 'bible') {
-        const todayProgress = activity.todayProgress || 0;
-        const dailyGoal = activity.dailyGoal || 1;
-        calculatedProgress = Math.min((todayProgress / dailyGoal) * 100, 100);
       } else {
         const currentMinutes = parseInt(currentPart.match(/(\d+)/)?.[1] || '0', 10);
         const goalMinutes = parseInt(goalPart.match(/(\d+)/)?.[1] || '0', 10);
@@ -38,37 +44,49 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
   
   // For calendar view, use historical data if available
   if (isCalendarView && date) {
-    // TODO: Get historical data for this activity on this date
-    // For now, we'll use the current progress
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    
+    if (!isToday) {
+      // For past dates, show empty ring if no data
+      calculatedProgress = activity.historicalProgress?.[date.toISOString()] ?? 0;
+    }
   }
   
   const progressOffset = circumference - (calculatedProgress / 100) * circumference;
   
-  // Updated color mappings to match Apple Fitness exactly
+  // Map legacy color names to new color names
+  const colorNameMap = {
+    'red': 'rose',
+    'orange': 'amber',
+    'purple': 'indigo'
+  };
+
+  // Convert legacy color names to new color names
+  const normalizedColorName = colorNameMap[color] || color;
+  
+  // Updated color mappings to match Tailwind colors
   const colorMap = {
-    red: {
-      ring: isCalendarView ? '#FF2D55' : (hideText ? '#FF1744' : '#EF4444'),
-      bg: isCalendarView ? 'rgba(255, 45, 85, 0.3)' : (hideText ? '#FFE5E5' : '#FEF2F2')
-    },
-    green: {
-      ring: isCalendarView ? '#2CD959' : (hideText ? '#00C853' : '#10B981'),
-      bg: isCalendarView ? 'rgba(44, 217, 89, 0.3)' : (hideText ? '#E8F5E9' : '#ECFDF5')
+    rose: {
+      ring: isCalendarView ? '#f43f5e' : '#f43f5e',
+      bg: isCalendarView ? 'rgba(244, 63, 94, 0.3)' : '#fff1f2'
     },
     blue: {
-      ring: isCalendarView ? '#2DD9FF' : (hideText ? '#2979FF' : '#3B82F6'),
-      bg: isCalendarView ? 'rgba(45, 217, 255, 0.3)' : (hideText ? '#E3F2FD' : '#EFF6FF')
+      ring: isCalendarView ? '#60a5fa' : '#60a5fa',
+      bg: isCalendarView ? 'rgba(96, 165, 250, 0.3)' : '#dbeafe'
     },
-    orange: {
-      ring: isCalendarView ? '#FF9500' : (hideText ? '#FF9100' : '#F59E0B'),
-      bg: isCalendarView ? 'rgba(255, 149, 0, 0.3)' : (hideText ? '#FFF3E0' : '#FFFBEB')
+    amber: {
+      ring: isCalendarView ? '#f59e0b' : '#f59e0b',
+      bg: isCalendarView ? 'rgba(245, 158, 11, 0.3)' : '#fffbeb'
     },
-    purple: {
-      ring: isCalendarView ? '#BF5AF2' : (hideText ? '#AA00FF' : '#8B5CF6'),
-      bg: isCalendarView ? 'rgba(191, 90, 242, 0.3)' : (hideText ? '#F3E5F5' : '#F5F3FF')
+    indigo: {
+      ring: isCalendarView ? '#6366f1' : '#6366f1',
+      bg: isCalendarView ? 'rgba(99, 102, 241, 0.3)' : '#eef2ff'
     }
   };
   
-  const colors = colorMap[color] || colorMap.blue;
+  // Use the activity's color or fallback to blue
+  const colors = colorMap[normalizedColorName] || colorMap.blue;
   
   // Format duration for display
   const formatDuration = (durationText) => {
@@ -145,9 +163,17 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
             
             {/* Streak Badge */}
             {streak > 0 && (
-              <View className="flex-row items-center gap-1 bg-amber-50 px-2 py-1 rounded-full absolute -bottom-1 -right-1">
-                <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                <Text className="text-sm text-amber-600 font-medium">{streak}d</Text>
+              <View 
+                className="flex-row items-center gap-1 px-2 py-1 rounded-full absolute -bottom-1 -right-1"
+                style={{ backgroundColor: colors.bg }}
+              >
+                <Star size={12} color={colors.ring} fill={colors.ring} />
+                <Text 
+                  className="text-xs font-medium"
+                  style={{ color: colors.ring }}
+                >
+                  {streak}d
+                </Text>
               </View>
             )}
           </>

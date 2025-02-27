@@ -61,7 +61,7 @@ const initialActivities = [
     duration: '0 mins / 15 mins',
     progress: 0,
     streak: 7,
-    color: 'red'
+    color: 'rose'
   },
   {
     id: 2,
@@ -89,7 +89,7 @@ const initialActivities = [
     duration: '0 mins / 20 mins',
     progress: 0,
     streak: 12,
-    color: 'orange'
+    color: 'amber'
   },
   {
     id: 4,
@@ -98,7 +98,7 @@ const initialActivities = [
     duration: '0 mins / 10 mins',
     progress: 0,
     streak: 1,
-    color: 'purple'
+    color: 'indigo'
   },
 ];
 
@@ -163,14 +163,16 @@ const useActivities = () => {
             const streak = typeof activity.streak === 'number' ? activity.streak : 
                           (initialActivity ? initialActivity.streak : 0);
             
-            // Preserve the activity type from initial data
+            // Preserve the activity type and color from initial data
             const type = initialActivity ? initialActivity.type : undefined;
+            const color = initialActivity ? initialActivity.color : 'blue';
             
             return { 
               ...activity, 
               icon,
               streak,
-              type
+              type,
+              color // Ensure color is preserved
             };
           });
           setActivities(activitiesWithIcons);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const { width } = useWindowDimensions();
@@ -13,6 +14,11 @@ const TabBar = ({ activeTab, onTabChange }) => {
   ];
 
   const tabWidth = (width - 32) / tabs.length;
+
+  const handleTabPress = async (tabId) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onTabChange(tabId);
+  };
 
   const indicatorStyle = useAnimatedStyle(() => {
     const index = tabs.findIndex(tab => tab.id === activeTab);
@@ -34,7 +40,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.id}
-            onPress={() => onTabChange(tab.id)}
+            onPress={() => handleTabPress(tab.id)}
             style={{ width: tabWidth }}
             className="items-center justify-center"
           >

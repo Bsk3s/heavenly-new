@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { ArrowLeft, Star, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import ActivityRing from '../../../components/home/ActivityRing';
 import ActivityModal from './ActivityModal';
 import useActivities from '../hooks/useActivities';
+import CustomCalendar from '../../../components/calendar/CustomCalendar';
 
 // Time view selector component
 const TimeViewSelector = ({ timeView, onViewChange }) => (
@@ -68,218 +69,196 @@ const WeekView = ({ weeklyData, activities }) => (
 
 // Helper function to get color values based on activity color
 const getColorForActivity = (colorName) => {
-  const colorMap = {
-    red: { bg: '#FEF2F2', text: '#EF4444' },
-    blue: { bg: '#EFF6FF', text: '#3B82F6' },
-    orange: { bg: '#FFFBEB', text: '#F59E0B' },
-    purple: { bg: '#F5F3FF', text: '#8B5CF6' }
+  // Map legacy color names to new color names
+  const colorNameMap = {
+    'red': 'rose',
+    'orange': 'amber',
+    'purple': 'indigo'
   };
-  return colorMap[colorName] || colorMap.blue;
+
+  // Convert legacy color names to new color names
+  const normalizedColorName = colorNameMap[colorName] || colorName;
+  
+  const colorMap = {
+    rose: { 
+      bg: '#fff1f2',
+      text: '#f43f5e',
+      ring: '#f43f5e',
+      streakBg: '#fff1f2'
+    },
+    blue: { 
+      bg: '#dbeafe',
+      text: '#60a5fa',
+      ring: '#60a5fa',
+      streakBg: '#dbeafe'
+    },
+    amber: { 
+      bg: '#fffbeb',
+      text: '#f59e0b',
+      ring: '#f59e0b',
+      streakBg: '#fffbeb'
+    },
+    indigo: { 
+      bg: '#eef2ff',
+      text: '#6366f1',
+      ring: '#6366f1',
+      streakBg: '#eef2ff'
+    }
+  };
+  return colorMap[normalizedColorName] || colorMap.blue;
 };
 
 // Month view component with calendar and activity rings
-const MonthView = ({ activities }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const screenWidth = Dimensions.get('window').width;
-  const padding = 16;
-  const daySize = Math.floor((screenWidth - (padding * 2)) / 7); // Ensure whole number
-  const ringSize = Math.floor(daySize * 0.82); // Larger rings (82% of cell)
+const MonthView = React.memo(({ activities }) => {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    return new Date(2025, 1, 1); // February 2025
+  });
   
-  // Update view every minute for real-time changes
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentMonth(new Date(currentMonth)); // Force refresh
-    }, 60000); // Every minute
-    return () => clearInterval(timer);
-  }, [currentMonth]);
-
-  // Get current date for highlighting
-  const today = new Date();
-  const isToday = (date) => {
-    return date && 
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear();
-  };
-
-  // Month label (e.g., "Feb", "Mar")
-  const getMonthLabel = (date) => {
-    return date.toLocaleString('default', { month: 'short' });
-  };
-
-  // Check if date is first of month
-  const isFirstOfMonth = (date) => {
-    return date && date.getDate() === 1;
-  };
-
-  const getDaysInMonth = (date) => {
+  const screenWidth = Dimensions.get('window').width;
+  const ringSize = 36; // Slightly larger rings for better visibility
+  
+  // Format date to YYYY-MM-DD for the calendar
+  const formatDate = (date) => {
+    if (!date) return '';
     const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
-    return { daysInMonth, startingDay };
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
-
-  const formatMonthYear = (date) => {
-    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
-  };
-
-  const changeMonth = (increment) => {
-    const newMonth = new Date(currentMonth);
-    newMonth.setMonth(newMonth.getMonth() + increment);
-    setCurrentMonth(newMonth);
-  };
-
-  const isDateInPast = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
-  };
-
-  const { daysInMonth, startingDay } = getDaysInMonth(currentMonth);
-  const days = [];
-  const totalDays = Math.ceil((daysInMonth + startingDay) / 7) * 7;
-
-  // Generate calendar days
-  for (let i = 0; i < totalDays; i++) {
-    const dayNumber = i - startingDay + 1;
-    const isCurrentMonth = dayNumber > 0 && dayNumber <= daysInMonth;
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayNumber);
-    const isPastDay = isCurrentMonth && isDateInPast(date);
-
-    days.push({
-      number: isCurrentMonth ? dayNumber : '',
-      isCurrentMonth,
-      isPastDay,
-      date: isCurrentMonth ? date : null
-    });
-  }
-
-  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-  return (
-    <View className="mt-2 bg-white">
-      {/* Month header */}
-      <View className="flex-row items-center justify-between px-4 mb-4">
-        <TouchableOpacity onPress={() => changeMonth(-1)} className="p-2">
-          <ChevronLeft size={24} color="#000" />
-        </TouchableOpacity>
-        <Text className="text-[22px] font-semibold text-gray-900">{formatMonthYear(currentMonth)}</Text>
-        <TouchableOpacity onPress={() => changeMonth(1)} className="p-2">
-          <ChevronRight size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Calendar container */}
-      <View style={{ paddingHorizontal: padding }}>
-        {/* Week days header */}
-        <View className="flex-row mb-1">
-          {weekDays.map((day, index) => (
-            <View 
-              key={index} 
+  
+  // Custom day component with activity rings
+  const renderDay = useCallback((day) => {
+    // If the day is from another month or null, render empty
+    if (day.state === 'disabled' || !day.date) {
+      return <View style={{ width: ringSize * 1.5, height: ringSize * 2 }} />;
+    }
+    
+    const dateObj = new Date(day.date.timestamp);
+    const isToday = dateObj.toDateString() === new Date().toDateString();
+    
+    // Check if it's the first day of the month to show month name
+    const isFirstDay = day.date.day === 1;
+    
+    // Get month abbreviation in a more consistent way
+    const monthAbbr = isFirstDay ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dateObj.getMonth()] : '';
+    
+    return (
+      <View style={{ 
+        width: ringSize * 1.5, 
+        height: ringSize * 2,
+        alignItems: 'center',
+        paddingTop: 2,
+      }}>
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: 16,
+          marginBottom: 4,
+        }}>
+          <Text 
+            style={{ 
+              fontSize: 11,
+              fontWeight: isToday ? 'bold' : 'normal',
+              color: isToday ? '#000' : '#666',
+            }}
+          >
+            {day.date.day}
+          </Text>
+          {isFirstDay && (
+            <Text 
               style={{ 
-                width: daySize,
-                alignItems: 'center',
-                paddingBottom: 8, // Consistent spacing to date numbers
+                fontSize: 11,
+                fontWeight: 'bold',
+                color: '#000',
+                marginLeft: 2,
               }}
             >
-              <Text className="text-[12px] font-normal text-gray-500">{day}</Text>
-            </View>
-          ))}
+              {' ' + monthAbbr}
+            </Text>
+          )}
         </View>
-
-        {/* Calendar grid */}
-        <View className="flex-row flex-wrap">
-          {days.map((day, index) => {
-            const isMonthStart = isFirstOfMonth(day.date);
-            const highlightToday = isToday(day.date);
-            const isFutureDate = day.date && day.date > today;
+        
+        <View style={{ 
+          width: ringSize, 
+          height: ringSize,
+          position: 'relative',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 2,
+        }}>
+          {/* Render activity rings from largest to smallest */}
+          {activities.map((activity, idx) => {
+            // Calculate progress for this activity on this date
+            const today = new Date();
+            const isCurrentDay = dateObj.toDateString() === today.toDateString();
+            
+            let progress = 0;
+            
+            // For past dates, use historical data if available
+            if (!isCurrentDay && activity.historicalProgress) {
+              progress = activity.historicalProgress[formatDate(dateObj)] ?? 0;
+            } else {
+              // For today or if no historical data, calculate based on activity type
+              if (activity.type === 'prayer') progress = 100;
+              else if (activity.type === 'bible') progress = activity.todayProgress > 0 ? 100 : 0;
+              else progress = activity.progress || 0;
+            }
+            
+            // Calculate scale factor based on index (smaller for each subsequent ring)
+            const scaleFactor = 1 - (idx * 0.15);
             
             return (
               <View
-                key={index}
-                style={{ 
-                  width: daySize,
-                  height: daySize * 1.25, // Slightly shorter for better spacing
-                  paddingTop: 2,
-                  paddingBottom: 2,
+                key={activity.id}
+                style={{
+                  position: 'absolute',
+                  width: ringSize,
+                  height: ringSize,
+                  transform: [{ scale: scaleFactor }],
+                  left: 0,
+                  top: 0,
                 }}
-                className="items-center relative"
               >
-                {/* Month label */}
-                {isMonthStart && (
-                  <Text className="text-[12px] font-medium text-gray-900 absolute -top-7 left-0">
-                    {getMonthLabel(day.date)}
-                  </Text>
-                )}
-                
-                {day.number !== '' && (
-                  <>
-                    {/* Date number */}
-                    <View 
-                      style={{
-                        width: 28,
-                        height: 28,
-                        marginBottom: 2,
-                      }}
-                      className={`items-center justify-center ${
-                        highlightToday ? 'bg-rose-500 rounded-full' : ''
-                      }`}
-                    >
-                      <Text 
-                        className={`text-[15px] font-normal ${
-                          !day.isCurrentMonth ? 'text-gray-300' :
-                          highlightToday ? 'text-white' :
-                          isFutureDate ? 'text-gray-400' : 'text-gray-900'
-                        }`}
-                      >
-                        {day.number}
-                      </Text>
-                    </View>
-
-                    {/* Activity rings - only show for past and current days */}
-                    {!isFutureDate && (
-                      <View 
-                        style={{ 
-                          width: ringSize,
-                          height: ringSize,
-                          marginTop: 1,
-                        }}
-                        className="items-center justify-center"
-                      >
-                        {activities.map((activity, idx) => (
-                          <View
-                            key={activity.id}
-                            className="absolute"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              transform: [{ scale: 1 - idx * 0.06 }], // More spacing between rings
-                            }}
-                          >
-                            <ActivityRing
-                              activity={activity}
-                              size={ringSize}
-                              hideText={true}
-                              isCalendarView={true}
-                              date={day.date}
-                            />
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </>
-                )}
+                <ActivityRing
+                  activity={{
+                    ...activity,
+                    progress: progress
+                  }}
+                  size={ringSize}
+                  hideText={true}
+                  isCalendarView={true}
+                  date={dateObj}
+                  color={activity.color}
+                />
               </View>
             );
           })}
         </View>
       </View>
+    );
+  }, [activities, ringSize]);
+  
+  // Handle month change
+  const handleMonthChange = (month) => {
+    const newDate = new Date(month.year, month.month - 1, 1);
+    setCurrentMonth(newDate);
+  };
+  
+  return (
+    <View className="mt-2 bg-white rounded-xl overflow-hidden">
+      <CustomCalendar
+        initialDate={currentMonth}
+        renderDay={renderDay}
+        onMonthChange={handleMonthChange}
+        calendarStyle={{ 
+          borderRadius: 12,
+          backgroundColor: '#ffffff',
+        }}
+      />
     </View>
   );
-};
+});
 
 const DailyProgressPage = ({ onBack }) => {
   const [timeView, setTimeView] = useState('month');
@@ -369,31 +348,6 @@ const DailyProgressPage = ({ onBack }) => {
               {activities.map((activity) => {
                 const colors = getColorForActivity(activity.color);
                 
-                // Format the progress display
-                const formatProgress = () => {
-                  if (activity.type === 'bible') {
-                    return `${activity.todayProgress || 0}/${activity.dailyGoal || 1}`;
-                  }
-                  return `${Math.round(activity.progress)}%`;
-                };
-
-                // Format the duration/status display
-                const formatStatus = () => {
-                  if (activity.type === 'bible') {
-                    return 'chapters';
-                  }
-                  if (activity.duration?.includes('Done')) {
-                    return 'Complete';
-                  }
-                  const parts = activity.duration?.split('/') || [];
-                  if (parts.length === 2) {
-                    const current = parts[0].trim().match(/(\d+)/)?.[1] || '0';
-                    const goal = parts[1].trim().match(/(\d+)/)?.[1] || '0';
-                    return `${current}/${goal} mins`;
-                  }
-                  return activity.duration || '0 mins';
-                };
-
                 return (
                   <TouchableOpacity 
                     key={activity.id} 
@@ -403,24 +357,36 @@ const DailyProgressPage = ({ onBack }) => {
                     <View className="flex-row items-center gap-3">
                       <View 
                         className="p-2.5 rounded-full" 
-                        style={{ backgroundColor: colors.bg }}
+                        style={{ backgroundColor: getColorForActivity(activity.color).bg }}
                       >
                         <activity.icon 
                           size={22} 
-                          color={colors.text}
+                          color={getColorForActivity(activity.color).text}
                         />
                       </View>
                       <View>
-                        <Text className="font-semibold text-gray-800 text-base">{activity.title}</Text>
+                        <Text className="font-semibold text-gray-800 text-base">
+                          {activity.title}
+                        </Text>
                         <Text className="text-sm text-gray-500">
-                          {formatProgress()} {formatStatus()}
+                          {activity.type === 'prayer' ? 'Complete' :
+                           activity.type === 'bible' ? `${activity.todayProgress || 20}/${activity.dailyGoal || 1} chapters` :
+                           `${activity.duration || '0m'}/${activity.targetDuration || '10m'}`}
                         </Text>
                       </View>
                     </View>
                     {activity.streak > 0 && (
-                      <View className="flex-row items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
-                        <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                        <Text className="text-sm text-amber-600 font-medium">{activity.streak}d</Text>
+                      <View 
+                        className="flex-row items-center gap-1 px-2 py-1 rounded-full"
+                        style={{ backgroundColor: getColorForActivity(activity.color).streakBg }}
+                      >
+                        <Star size={16} color={getColorForActivity(activity.color).text} fill={getColorForActivity(activity.color).text} />
+                        <Text 
+                          className="text-sm"
+                          style={{ color: getColorForActivity(activity.color).text }}
+                        >
+                          {activity.streak}d
+                        </Text>
                       </View>
                     )}
                   </TouchableOpacity>

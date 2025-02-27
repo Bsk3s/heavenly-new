@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, Animated, PanResponder, SafeAreaView, ScrollView } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Slider from '@react-native-community/slider';
 import { X, Play, Clock, Star, Pause, Check, XCircle, BookOpen, ChevronDown } from 'lucide-react-native';
 
@@ -50,16 +51,27 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return gestureState.dy > 5;
       },
+      onPanResponderGrant: () => {
+        // Light impact when starting to drag
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
           slideAnim.setValue(gestureState.dy);
+          // Add haptic feedback at certain thresholds
+          if (gestureState.dy > 100) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
         }
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 100) {
-          // User dragged down enough to dismiss
+          // Heavy impact when dismissing
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           closeModal();
         } else {
+          // Light impact when snapping back
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           // Snap back to original position
           Animated.spring(slideAnim, {
             toValue: 0,
@@ -228,15 +240,49 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
 
   // Get the appropriate color for the activity
   const getActivityColor = (colorName) => {
-    switch (colorName) {
-      case 'red': return '#EF4444';
-      case 'blue': return '#3B82F6';
-      case 'orange': return '#F59E0B';
-      default: return '#8B5CF6'; // purple
-    }
+    // Map legacy color names to new color names
+    const colorNameMap = {
+      'red': 'rose',
+      'orange': 'amber',
+      'purple': 'indigo'
+    };
+
+    // Convert legacy color names to new color names
+    const normalizedColorName = colorNameMap[colorName] || colorName;
+    
+    const colorMap = {
+      rose: '#f43f5e',
+      blue: '#60a5fa',
+      amber: '#f59e0b',
+      indigo: '#6366f1'
+    };
+
+    return colorMap[normalizedColorName] || colorMap.blue;
   };
 
   const activityColor = getActivityColor(activity.color);
+
+  // Get background color for buttons and icons
+  const getActivityBgColor = (colorName) => {
+    // Map legacy color names to new color names
+    const colorNameMap = {
+      'red': 'rose',
+      'orange': 'amber',
+      'purple': 'indigo'
+    };
+
+    // Convert legacy color names to new color names
+    const normalizedColorName = colorNameMap[colorName] || colorName;
+    
+    const colorMap = {
+      rose: '#fff1f2',
+      blue: '#dbeafe',
+      amber: '#fffbeb',
+      indigo: '#eef2ff'
+    };
+
+    return colorMap[normalizedColorName] || colorMap.blue;
+  };
 
   const handleChapterPress = async (book, chapter) => {
     setSelectedChapter(chapter);
@@ -596,7 +642,10 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
             {/* Header with activity title */}
             <View className="px-6 py-3 flex-row items-center justify-between">
               <View className="flex-row items-center">
-                <View className="mr-3 p-2 rounded-full" style={{ backgroundColor: `${activityColor}10` }}>
+                <View 
+                  className="mr-3 p-2 rounded-full" 
+                  style={{ backgroundColor: getActivityBgColor(activity.color) }}
+                >
                   <activity.icon size={20} color={activityColor} />
                 </View>
                 <Text className="text-lg font-semibold text-gray-800">{activity.title}</Text>
@@ -626,11 +675,9 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
                 {/* Timer display if active */}
                 {showTimerControls && (
                   <View className="px-6 mb-6">
-                    <View className="bg-gray-50 rounded-xl p-4 items-center mb-4">
-                      <Text className="text-3xl font-bold text-gray-800">
-                        {formatTime(timerSeconds)}
-                      </Text>
-                    </View>
+                    <Text className="text-4xl font-semibold text-center mb-4" style={{ color: activityColor }}>
+                      {formatTime(timerSeconds)}
+                    </Text>
                     
                     {/* Timer controls */}
                     <View className="flex-row justify-between">
@@ -664,7 +711,7 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
                   <View className="px-6 flex-row gap-4 mb-6">
                     <TouchableOpacity 
                       className="flex-1 py-6 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: `${activityColor}10` }}
+                      style={{ backgroundColor: getActivityBgColor(activity.color) }}
                       onPress={handleStartTimer}
                     >
                       <View className="items-center">
@@ -676,10 +723,11 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                      className="flex-1 py-6 items-center justify-center rounded-xl bg-blue-50"
+                      className="flex-1 py-6 items-center justify-center rounded-xl"
+                      style={{ backgroundColor: getActivityBgColor(activity.color) }}
                     >
                       <View className="items-center">
-                        <Clock size={24} color="#3B82F6" />
+                        <Clock size={24} color={activityColor} />
                         <Text className="mt-2 text-sm font-medium text-gray-800">Log Time</Text>
                       </View>
                     </TouchableOpacity>
@@ -693,10 +741,11 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
                     {[5, 10, 15, 20].map((time) => (
                       <TouchableOpacity
                         key={time}
-                        className="py-2 px-4 bg-gray-100 rounded-lg"
+                        className="py-2 px-4 rounded-lg"
+                        style={{ backgroundColor: getActivityBgColor(activity.color) }}
                         onPress={() => handleQuickAdd(time)}
                       >
-                        <Text className="text-sm text-gray-800">{time} mins</Text>
+                        <Text className="text-sm" style={{ color: activityColor }}>{time} mins</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -726,7 +775,7 @@ const ActivityModal = ({ activity, onClose, onUpdateProgress, onAddTime, onStart
             {/* Stats */}
             <View className="px-6 mb-8">
               <View className="flex-row items-center mb-3">
-                <Star size={16} color="#F59E0B" className="mr-2" />
+                <Star size={16} color={activityColor} className="mr-2" />
                 <Text className="text-sm font-medium text-gray-800">Progress</Text>
               </View>
               <View className="space-y-2">
