@@ -111,6 +111,7 @@ const getColorForActivity = (colorName) => {
 // Month view component with calendar and activity rings
 const MonthView = React.memo(({ activities }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
+    // Set to February 2025 for demonstration
     return new Date(2025, 1, 1); // February 2025
   });
   
@@ -135,7 +136,14 @@ const MonthView = React.memo(({ activities }) => {
     }
     
     const dateObj = new Date(day.date.timestamp);
-    const isToday = dateObj.toDateString() === new Date().toDateString();
+    
+    // For demo purposes, set today to be the 27th of February 2025
+    const today = new Date(2025, 1, 27);
+    
+    // Check if this date is today (comparing year, month, and day)
+    const isToday = dateObj.getDate() === today.getDate() && 
+                    dateObj.getMonth() === today.getMonth() && 
+                    dateObj.getFullYear() === today.getFullYear();
     
     // Check if it's the first day of the month to show month name
     const isFirstDay = day.date.day === 1;
@@ -143,12 +151,14 @@ const MonthView = React.memo(({ activities }) => {
     // Get month abbreviation
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    // For the reference image, we're highlighting day 27 as the current day
-    const isHighlighted = day.date.day === 27;
+    // Only highlight if it's actually today
+    const isHighlighted = isToday;
     
-    // Generate sample data for demonstration
-    // In a real app, this would come from actual user data
-    const hasData = day.date.day % 3 === 0 || day.date.day % 7 === 0 || day.date.day === 27;
+    // For demo purposes, consider all days in February 2025 as past or today
+    const isPastOrToday = dateObj <= today;
+    
+    // For demonstration, show data for more days to make the calendar more vibrant
+    const hasData = true; // Show data for all days
     
     return (
       <View style={{ 
@@ -191,20 +201,40 @@ const MonthView = React.memo(({ activities }) => {
             // Calculate progress for this activity on this date
             let progress = 0;
             
-            // For demonstration, add sample data to match reference image
-            if (day.date.day === 27) {
-              // Current day - show different progress for each ring
-              if (idx === 0) progress = 100; // First ring complete
-              else if (idx === 1) progress = 75; // Second ring 75%
-              else if (idx === 2) progress = 50; // Third ring 50%
-            } 
-            else if (day.date.day % 3 === 0) {
-              // Every third day has some progress
-              progress = 75 + (day.date.day % 25);
-            } 
-            else if (day.date.day % 7 === 0) {
-              // Every seventh day has full progress
-              progress = 100;
+            // Enhanced dummy data generation for February 2025
+            if (isPastOrToday) {
+              if (isToday) {
+                // Current day - show different progress for each ring
+                if (idx === 0) progress = 100; // First ring complete
+                else if (idx === 1) progress = 75; // Second ring 75%
+                else if (idx === 2) progress = 50; // Third ring 50%
+              } 
+              else if (day.date.day % 3 === 0) {
+                // Every third day has some progress
+                if (idx === 0) progress = 90; // First ring almost complete
+                else if (idx === 1) progress = 60; // Second ring partial
+                else if (idx === 2) progress = 30; // Third ring started
+              } 
+              else if (day.date.day % 7 === 0) {
+                // Every seventh day has full progress on all rings
+                progress = 100;
+              }
+              else if (day.date.day % 5 === 0) {
+                // Every fifth day has partial progress on different rings
+                if (idx === 0) progress = 60;
+                else if (idx === 1) progress = 80;
+                else if (idx === 2) progress = 40;
+              }
+              else if (day.date.day % 2 === 0) {
+                // Even days have some progress on first ring only
+                if (idx === 0) progress = 50;
+              }
+              else {
+                // All other days have at least some minimal progress
+                if (idx === 0) progress = 30;
+                if (idx === 1) progress = 20;
+                // Third ring stays empty for these days
+              }
             }
             
             // Calculate scale factor based on index (smaller for each subsequent ring)
