@@ -5,10 +5,10 @@ import * as Haptics from 'expo-haptics';
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const { width } = useWindowDimensions();
-  
+
   const tabs = [
     { id: 'chat', label: 'Chat' },
-    { id: 'home', label: 'Home' },
+    { id: 'index', label: 'Home' },
     { id: 'bible', label: 'Bible' },
     { id: 'study', label: 'Study' }
   ];
@@ -30,11 +30,11 @@ const TabBar = ({ activeTab, onTabChange }) => {
   return (
     <View className="px-4 py-2">
       <View className="bg-[#F3F4F6] rounded-full h-[45px] flex-row relative overflow-hidden">
-        <Animated.View 
+        <Animated.View
           style={[
             { width: tabWidth },
             indicatorStyle,
-          ]} 
+          ]}
           className="absolute h-[36px] bg-white rounded-full top-[4.5px] left-[3px]"
         />
         {tabs.map((tab) => (

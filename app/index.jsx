@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRotatingText } from "./hooks/useRotatingText";
 import { useTypingText } from "./hooks/useTypingText";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +16,7 @@ export default function Index() {
   const router = useRouter();
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     checkAuthStatus();
@@ -53,7 +54,10 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <StatusBar style="dark" />
+      
+      {/* Main Content */}
       <View className="flex-1 justify-center items-center">
         <Text className="text-3xl font-bold text-center mb-2">
           {displayedText}
@@ -66,7 +70,13 @@ export default function Index() {
         </Text>
       </View>
       
-      <View className="absolute bottom-2 left-0 right-0 pb-4">
+      {/* Bottom Buttons */}
+      <View 
+        className="absolute left-0 right-0"
+        style={{
+          bottom: insets.bottom + 18 // Increased from 16 to 48 to move buttons up
+        }}
+      >
         <View className="mb-4 items-center">
           <Button
             onPress={handleGetStarted}
@@ -82,7 +92,13 @@ export default function Index() {
         </View>
       </View>
 
-      <View className="absolute bottom-0 left-0 right-0">
+      {/* Sliders */}
+      <View 
+        className="absolute left-0 right-0"
+        style={{
+          bottom: 0
+        }}
+      >
         <SignUpSlider 
           isOpen={isSignUpOpen} 
           onClose={() => setIsSignUpOpen(false)} 

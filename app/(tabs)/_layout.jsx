@@ -10,14 +10,14 @@ export default function TabLayout() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   
-  // Remove the leading slash and any nested paths
-  const activeTab = pathname.split('/')[1] || 'home';
+  // Get the active tab from the last segment of the path
+  const activeTab = pathname.split('/').pop() || 'index';
 
   const handleTabChange = (tabId) => {
-    if (tabId === 'home') {
-      router.push('/');
+    if (tabId === 'index') {
+      router.push('/(tabs)'); // Navigate to home tab
     } else {
-      router.push(`/${tabId}`);
+      router.push(`/(tabs)/${tabId}`); // Navigate to other tabs
     }
   };
 
