@@ -79,4 +79,10 @@ export const bibleStories = [
     description: "Journey to freedom",
     imageSrc: "https://via.placeholder.com/400x300"
   }
-]; 
+];
+
+const homeData = {
+  // ... existing data ...
+};
+
+export default homeData; 

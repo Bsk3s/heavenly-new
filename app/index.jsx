@@ -1,14 +1,16 @@
-import { Text, View } from "react-native";
+import { Text, View, TouchableOpacity } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRotatingText } from "./hooks/useRotatingText";
-import { useTypingText } from "./hooks/useTypingText";
+import useRotatingText from "./hooks/useRotatingText";
+import useTypingText from "./hooks/useTypingText";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import Button from "./components/button";
 import SignInSlider from "./components/sign-in-slider";
 import SignUpSlider from "./components/Sign-up-slider";
+import { Link } from "expo-router";
+import { styled } from "nativewind";
 
 export default function Index() {
   const { text, textColor } = useRotatingText();

@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * @param {string} chapterId - The ID of the current chapter
  * @returns {Object} Verse interaction state and functions
  */
-export function useVerseInteractions(versionId, bookId, chapterId) {
+const useVerseInteractions = (versionId, bookId, chapterId) => {
   const [highlightedVerses, setHighlightedVerses] = useState([]);
   const [selectedVerse, setSelectedVerse] = useState(null);
 
@@ -40,7 +40,7 @@ export function useVerseInteractions(versionId, bookId, chapterId) {
     const newHighlightedVerses = highlightedVerses.includes(verseId)
       ? highlightedVerses.filter(id => id !== verseId)
       : [...highlightedVerses, verseId];
-    
+
     setHighlightedVerses(newHighlightedVerses);
     await saveHighlightedVerses(newHighlightedVerses);
   }, [highlightedVerses, saveHighlightedVerses]);
@@ -64,4 +64,6 @@ export function useVerseInteractions(versionId, bookId, chapterId) {
     discussVerse,
     loadHighlightedVerses
   };
-} 
+};
+
+export default useVerseInteractions; 

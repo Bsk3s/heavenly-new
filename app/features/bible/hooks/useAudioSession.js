@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Audio } from 'expo-av';
-import { Platform } from 'react-native';
-import { AUDIO_CONFIG } from '../constants/audio';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 
 const useAudioSession = () => {
   const [isSessionReady, setIsSessionReady] = useState(false);
@@ -16,7 +14,13 @@ const useAudioSession = () => {
       }
 
       console.log('[AudioSession] Setting audio mode...');
-      await Audio.setAudioModeAsync(AUDIO_CONFIG);
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      });
 
       console.log('[AudioSession] Setup complete');
       setIsSessionReady(true);
@@ -30,33 +34,15 @@ const useAudioSession = () => {
     }
   };
 
-  const cleanupAudioSession = async () => {
-    try {
-      console.log('[AudioSession] Cleaning up...');
-      await Audio.setAudioModeAsync({
-        ...AUDIO_CONFIG,
-        staysActiveInBackground: false,
-        playsInSilentModeIOS: false,
-      });
-      setIsSessionReady(false);
-    } catch (err) {
-      console.error('[AudioSession] Cleanup failed:', err);
-    }
-  };
-
   // Initialize on mount
   useEffect(() => {
     setupAudioSession();
-    return () => {
-      cleanupAudioSession();
-    };
   }, []);
 
   return {
     isSessionReady,
     error,
-    setupAudioSession,
-    cleanupAudioSession
+    setupAudioSession
   };
 };
 

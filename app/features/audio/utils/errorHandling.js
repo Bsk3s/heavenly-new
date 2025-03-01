@@ -44,4 +44,16 @@ export const formatErrorForLogging = (error, context) => {
     stack: error.stack,
     timestamp: new Date().toISOString()
   };
-}; 
+};
+
+const errorHandling = {
+  handleError: (error) => {
+    console.error('Audio Error:', error);
+    return {
+      message: error.message || 'An unexpected error occurred',
+      code: error.code || 'UNKNOWN_ERROR'
+    };
+  }
+};
+
+export default errorHandling; 

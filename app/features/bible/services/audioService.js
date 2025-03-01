@@ -60,7 +60,7 @@ class AudioService {
   }
 
   async setupAudio(audioBuffer) {
-    this._log('setupAudio', { 
+    this._log('setupAudio', {
       hasBuffer: !!audioBuffer,
       bufferLength: audioBuffer?.length,
       isLoading: this.isLoading
@@ -83,7 +83,7 @@ class AudioService {
         this._log('setupAudio', { creating: true });
         const { sound } = await Audio.Sound.createAsync(
           { uri: `data:audio/mp3;base64,${audioBuffer}` },
-          { 
+          {
             shouldPlay: false,
             progressUpdateIntervalMillis: 100,
             positionMillis: 0,
@@ -97,7 +97,7 @@ class AudioService {
 
         this.sound = sound;
         const status = await sound.getStatusAsync();
-        this._log('setupAudio', { 
+        this._log('setupAudio', {
           success: true,
           status
         });
@@ -125,14 +125,14 @@ class AudioService {
 
       const status = await this.sound.getStatusAsync();
       this._log('play', { prePlayStatus: status });
-      
+
       if (!status.isLoaded) {
         throw new Error('Audio not loaded');
       }
 
       await this.sound.playAsync();
       const newStatus = await this.sound.getStatusAsync();
-      this._log('play', { 
+      this._log('play', {
         success: true,
         postPlayStatus: newStatus
       });
@@ -155,7 +155,7 @@ class AudioService {
 
       const status = await this.sound.getStatusAsync();
       this._log('pause', { prePauseStatus: status });
-      
+
       if (!status.isLoaded) {
         this._log('pause', { skipped: 'Not loaded' });
         return false;
@@ -163,7 +163,7 @@ class AudioService {
 
       await this.sound.pauseAsync();
       const newStatus = await this.sound.getStatusAsync();
-      this._log('pause', { 
+      this._log('pause', {
         success: true,
         postPauseStatus: newStatus
       });
@@ -186,7 +186,7 @@ class AudioService {
 
       const status = await this.sound.getStatusAsync();
       this._log('stop', { preStopStatus: status });
-      
+
       if (!status.isLoaded) {
         this._log('stop', { skipped: 'Not loaded' });
         return false;

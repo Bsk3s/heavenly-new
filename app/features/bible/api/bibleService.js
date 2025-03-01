@@ -35,7 +35,7 @@ const handleApiError = async (response, context) => {
       errorData,
       message: errorMessage
     });
-    
+
     throw new Error(errorMessage);
   }
   return response;
@@ -51,7 +51,7 @@ export const getBibleVersions = async () => {
       method: 'GET',
       headers,
     });
-    
+
     await handleApiError(response, 'fetch Bible versions');
     const data = await response.json();
     return data.data;
@@ -72,11 +72,11 @@ export const getBooks = async (bibleId) => {
       method: 'GET',
       headers,
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch books');
     }
-    
+
     const data = await response.json();
     return data.data;
   } catch (error) {
@@ -94,7 +94,7 @@ export const getBooks = async (bibleId) => {
 export const getChapters = async (bibleId, bookId) => {
   try {
     console.log('Fetching chapters for:', { bibleId, bookId });
-    
+
     if (!bibleId || !bookId) {
       throw new Error('Bible ID and Book ID are required');
     }
@@ -103,13 +103,13 @@ export const getChapters = async (bibleId, bookId) => {
       method: 'GET',
       headers,
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       console.error('API Error Response:', errorData);
       throw new Error(`Failed to fetch chapters: ${errorData.message || response.statusText}`);
     }
-    
+
     const data = await response.json();
     console.log('Raw chapters data:', data);
 
@@ -165,16 +165,16 @@ export const getChapterContent = async (bibleId, chapterId) => {
       method: 'GET',
       headers,
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       console.error('API Error Response:', errorData);
       throw new Error(`Failed to fetch chapter content: ${errorData.message || response.statusText}`);
     }
-    
+
     const data = await response.json();
     console.log('Raw API response:', data);
-    
+
     if (!data.data) {
       throw new Error('Invalid response format from Bible API');
     }
@@ -191,32 +191,32 @@ export const getChapterContent = async (bibleId, chapterId) => {
     // Parse HTML content to extract verses
     if (typeof data.data.content === 'string') {
       const content = data.data.content;
-      
+
       // Find all verse spans in the content
       const verses = [];
       let currentVerseNum = 0;
       let currentVerseText = '';
-      
+
       // First, clean up the HTML content
       const cleanContent = content
         .replace(/<\/?p>/g, ' ')  // Replace paragraph tags with spaces
         .replace(/<br\s*\/?>/g, ' ')  // Replace line breaks with spaces
         .replace(/\s+/g, ' ')  // Normalize whitespace
         .trim();
-      
+
       // Split content by verse markers
       const verseParts = cleanContent.split(/<span[^>]*data-number="(\d+)"[^>]*class="v"[^>]*>\d+<\/span>/);
-      
+
       for (let i = 1; i < verseParts.length; i += 2) {
         const verseNum = parseInt(verseParts[i], 10);
         let verseText = verseParts[i + 1] || '';
-        
+
         // Clean up the verse text
         verseText = verseText
           .replace(/<[^>]+>/g, ' ')  // Remove any remaining HTML tags
           .replace(/\s+/g, ' ')  // Normalize whitespace
           .trim();
-        
+
         if (verseNum && verseText) {
           verses.push({
             id: `${chapterId}.${verseNum}`,
@@ -225,13 +225,13 @@ export const getChapterContent = async (bibleId, chapterId) => {
           });
         }
       }
-      
+
       processedData.verses = verses;
     }
 
     // Sort verses by number
     processedData.verses.sort((a, b) => a.number - b.number);
-    
+
     console.log('Processed chapter data with verses:', processedData);
     return processedData;
   } catch (error) {
@@ -252,13 +252,13 @@ export const searchBible = async (bibleId, query) => {
       method: 'GET',
       headers,
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to search Bible');
     }
-    
+
     const data = await response.json();
-    
+
     // Process search results to match verse format
     if (data.data && data.data.verses) {
       return {
@@ -271,7 +271,7 @@ export const searchBible = async (bibleId, query) => {
         }))
       };
     }
-    
+
     return data.data;
   } catch (error) {
     console.error('Error searching Bible:', error);
@@ -291,13 +291,13 @@ export const getVerse = async (bibleId, verseId) => {
       method: 'GET',
       headers,
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch verse');
     }
-    
+
     const data = await response.json();
-    
+
     // Process verse data to ensure consistent format
     if (data.data) {
       return {
@@ -306,10 +306,16 @@ export const getVerse = async (bibleId, verseId) => {
         number: parseInt(data.data.reference.split(':')[1], 10) || 1
       };
     }
-    
+
     throw new Error('Invalid verse data format');
   } catch (error) {
     console.error('Error fetching verse:', error);
     throw error;
   }
-}; 
+};
+
+const bibleService = {
+  // ... existing functions ...
+};
+
+export default bibleService; 

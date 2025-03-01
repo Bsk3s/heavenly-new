@@ -95,4 +95,10 @@ export const getTestamentName = (id) => {
   if (isOldTestament(id)) return 'Old Testament';
   if (isNewTestament(id)) return 'New Testament';
   return '';
-}; 
+};
+
+const bibleBooks = {
+  // ... existing data ...
+};
+
+export default bibleBooks; 

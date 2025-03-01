@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { Audio } from 'expo-av';
 
-export const useAudioPlayer = () => {
+const useAudioPlayer = () => {
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -173,4 +173,6 @@ export const useAudioPlayer = () => {
       setRate
     }
   };
-}; 
+};
+
+export default useAudioPlayer; 

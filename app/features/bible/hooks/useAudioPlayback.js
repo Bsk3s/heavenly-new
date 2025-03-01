@@ -3,7 +3,7 @@ import { Audio } from 'expo-av';
 import ttsService from '../services/ttsService';
 import audioService from '../services/audioService';
 
-export const useAudioPlayback = (verses, chapterInfo) => {
+const useAudioPlayback = (verses, chapterInfo) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -120,4 +120,6 @@ export const useAudioPlayback = (verses, chapterInfo) => {
       jumpToVerse
     }
   };
-}; 
+};
+
+export default useAudioPlayback; 

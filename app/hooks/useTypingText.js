@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Vibration } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
-export function useTypingText(text, speed = 50) {
+const useTypingText = (text, speed = 50) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
 
@@ -34,4 +34,6 @@ export function useTypingText(text, speed = 50) {
   }, [text, speed]);
 
   return { displayedText: displayedText || text, isComplete };
-} 
+};
+
+export default useTypingText; 

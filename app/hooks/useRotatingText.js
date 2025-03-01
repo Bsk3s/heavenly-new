@@ -9,7 +9,7 @@ const rotatingTexts = [
   { text: "get fresh perspective from the word", textColor: "#FF9800" }
 ];
 
-export function useRotatingText() {
+const useRotatingText = () => {
   const [currentText, setCurrentText] = useState(rotatingTexts[0]);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useRotatingText() {
         const nextIndex = (currentIndex + 1) % rotatingTexts.length;
         return rotatingTexts[nextIndex];
       });
-    }, 2000); // Increased interval to 3 seconds
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []);
@@ -28,4 +28,6 @@ export function useRotatingText() {
     text: currentText?.text || rotatingTexts[0].text, 
     textColor: currentText?.textColor || rotatingTexts[0].textColor 
   };
-} 
+};
+
+export default useRotatingText; 

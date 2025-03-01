@@ -8,7 +8,7 @@ import { ALL_BOOKS } from '../constants/books';
  * @param {string} bibleId - The ID of the current Bible version
  * @returns {Object} Bible navigation state and functions
  */
-export const useBibleNavigation = (bibleId) => {
+const useBibleNavigation = (bibleId) => {
   const [books, setBooks] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [currentBookId, setCurrentBookId] = useState(null);
@@ -33,7 +33,7 @@ export const useBibleNavigation = (bibleId) => {
       try {
         setLoadingBooks(true);
         const fetchedBooks = await getBooks(bibleId);
-        
+
         // Sort books according to biblical order
         const sortedBooks = fetchedBooks.sort((a, b) => {
           const aIndex = ALL_BOOKS.findIndex(book => book.name === a.name);
@@ -42,7 +42,7 @@ export const useBibleNavigation = (bibleId) => {
         });
 
         setBooks(sortedBooks);
-        
+
         // Set default book if none selected
         const savedBookId = await AsyncStorage.getItem('currentBookId');
         if (!savedBookId && sortedBooks.length > 0) {
@@ -51,7 +51,7 @@ export const useBibleNavigation = (bibleId) => {
         } else if (savedBookId) {
           setCurrentBookId(savedBookId);
         }
-        
+
         setLoadingBooks(false);
       } catch (error) {
         console.error('Error loading books:', error);
@@ -77,7 +77,7 @@ export const useBibleNavigation = (bibleId) => {
         setLoadingChapters(true);
         const fetchedChapters = await getChapters(bibleId, currentBookId);
         setChapters(fetchedChapters);
-        
+
         // Set default chapter if none selected
         const savedChapterId = await AsyncStorage.getItem('currentChapterId');
         if (!savedChapterId && fetchedChapters.length > 0) {
@@ -93,7 +93,7 @@ export const useBibleNavigation = (bibleId) => {
             AsyncStorage.setItem('currentChapterId', fetchedChapters[0].id);
           }
         }
-        
+
         setLoadingChapters(false);
       } catch (error) {
         console.error('Error loading chapters:', error);
@@ -161,4 +161,6 @@ export const useBibleNavigation = (bibleId) => {
     loadingChapters,
     error
   };
-}; 
+};
+
+export default useBibleNavigation; 

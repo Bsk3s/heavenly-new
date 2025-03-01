@@ -12,10 +12,10 @@ function preprocessText(text) {
     // Remove paragraph markers
     .replace(/¶\s*/g, '')
     // Remove multiple spaces
-    .replace(/\s+/g, ' ')
+        .replace(/\s+/g, ' ')
     // Clean up punctuation for better flow
     .replace(/([.!?])\s+/g, '$1 ')
-    .trim();
+        .trim();
 }
 
 export async function getGoogleTTS(text) {
@@ -34,21 +34,21 @@ export async function getGoogleTTS(text) {
     },
     body: JSON.stringify({
       input: { ssml: ssmlText },
-      voice: {
-        languageCode: 'en-US',
-        name: 'en-US-Neural2-D',
-        ssmlGender: 'MALE'
-      },
-      audioConfig: {
-        audioEncoding: 'MP3',
+        voice: {
+          languageCode: 'en-US',
+          name: 'en-US-Neural2-D',
+          ssmlGender: 'MALE'
+        },
+        audioConfig: {
+          audioEncoding: 'MP3',
         speakingRate: 0.9,
         pitch: -2,
-        volumeGainDb: 0
-      }
+          volumeGainDb: 0
+        }
     })
-  });
+      });
 
-  if (!response.ok) {
+      if (!response.ok) {
     const error = await response.json();
     throw new Error(`TTS API error: ${error.error?.message || 'Unknown error'}`);
   }
@@ -81,8 +81,14 @@ export async function playAudioContent(audioContent, onPlaybackStatusUpdate) {
     }
 
     return sound;
-  } catch (error) {
+    } catch (error) {
     console.error('Error creating audio player:', error);
-    throw error;
+      throw error;
+    }
   }
-} 
+
+const ttsService = {
+  // ... existing functions ...
+};
+
+export default ttsService;

@@ -31,4 +31,10 @@ export const TTS_CONFIG = {
 };
 
 // Playback Speeds
-export const PLAYBACK_SPEEDS = [0.75, 1.0, 1.25, 1.5]; 
+export const PLAYBACK_SPEEDS = [0.75, 1.0, 1.25, 1.5];
+
+const audioConstants = {
+  // ... existing constants ...
+};
+
+export default audioConstants; 

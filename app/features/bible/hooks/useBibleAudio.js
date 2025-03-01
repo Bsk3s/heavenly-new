@@ -1,13 +1,22 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { getGoogleTTS } from '../services/ttsService';
+import { handleError } from '../utils/errorUtils';
 
-export const useBibleAudio = (verses, { book, chapter }) => {
+const useBibleAudio = (verses, { book, chapter }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentVerseIndex, setCurrentVerseIndex] = useState(-1);
   const [error, setError] = useState(null);
-  
+  const [isChapterReady, setIsChapterReady] = useState(false);
+
+  // Progress tracking state
+  const [progress, setProgress] = useState({
+    currentTime: 0,
+    duration: 0,
+    progress: 0
+  });
+
   // Sound management
   const currentSound = useRef(null);
   const nextSound = useRef(null);
@@ -16,33 +25,187 @@ export const useBibleAudio = (verses, { book, chapter }) => {
   const isMountedRef = useRef(true);
   const preloadingRef = useRef(false);
 
-  // Initialize audio session
-  useEffect(() => {
-    const initAudio = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-          shouldDuckAndroid: true,
-          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-        });
-      } catch (err) {
-        console.error('Error initializing audio:', err);
+  // Chapter audio management
+  const chapterAudioRef = useRef({
+    sounds: [],              // Array of preloaded sounds
+    totalDuration: 0,        // Total chapter duration
+    verseStartTimes: [],     // Start time of each verse
+    verseDurations: [],      // Duration of each verse
+    isInitialized: false     // Whether chapter is ready
+  });
+
+  // Initialize chapter audio silently
+  const initializeChapter = useCallback(async () => {
+    if (!verses.length || chapterAudioRef.current.isInitialized) return;
+
+    try {
+      setIsChapterReady(false);
+      const sounds = [];
+      const verseDurations = [];
+      let totalDuration = 0;
+      const verseStartTimes = [];
+
+      // Create all verse audio in parallel
+      const soundPromises = verses.map(async (verse) => {
+        const verseText = `<speak>${verse.text}<break time="150ms"/></speak>`;
+        const audioContent = await getGoogleTTS(verseText);
+        if (!isMountedRef.current) return null;
+
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: `data:audio/mp3;base64,${audioContent}` },
+          { shouldPlay: false }
+        );
+
+        const status = await sound.getStatusAsync();
+        return { sound, duration: status.durationMillis / 1000, verse: verse.number };
+      });
+
+      const results = await Promise.all(soundPromises);
+
+      // Process results and calculate timings
+      results.forEach((result, index) => {
+        if (result && result.sound) {
+          sounds[index] = result.sound;
+          verseDurations[index] = result.duration;
+          verseStartTimes[index] = totalDuration;
+          totalDuration += result.duration;
+        }
+      });
+
+      // Store everything in ref
+      chapterAudioRef.current = {
+        sounds,
+        totalDuration,
+        verseStartTimes,
+        verseDurations,
+        isInitialized: true
+      };
+
+      setProgress(prev => ({
+        ...prev,
+        duration: totalDuration
+      }));
+
+      setIsChapterReady(true);
+    } catch (err) {
+      const handledError = handleError(err);
+      console.error('Error initializing chapter:', handledError);
+      setError(handledError);
+    }
+  }, [verses]);
+
+  // Calculate verse index and offset from chapter position
+  const getVerseFromPosition = useCallback((position) => {
+    const { verseStartTimes, verseDurations } = chapterAudioRef.current;
+    let verseIndex = 0;
+
+    for (let i = verseStartTimes.length - 1; i >= 0; i--) {
+      if (position >= verseStartTimes[i]) {
+        verseIndex = i;
+        break;
       }
-    };
-    initAudio();
-    return () => {
-      isMountedRef.current = false;
-    };
+    }
+
+    const verseOffset = position - verseStartTimes[verseIndex];
+    return { verseIndex, offset: verseOffset * 1000 }; // Convert to milliseconds
   }, []);
 
-  // Cleanup on unmount
+  const updateProgress = useCallback((status) => {
+    if (!status.isLoaded || !isMountedRef.current) return;
+
+    const verseTime = status.positionMillis / 1000;
+    const currentVerseStartTime = chapterAudioRef.current.verseStartTimes[currentVerseIndex] || 0;
+    const chapterCurrentTime = currentVerseStartTime + verseTime;
+    const chapterProgress = chapterCurrentTime / chapterAudioRef.current.totalDuration;
+
+    setProgress({
+      currentTime: chapterCurrentTime,
+      duration: chapterAudioRef.current.totalDuration,
+      progress: chapterProgress
+    });
+  }, [currentVerseIndex]);
+
+  // Modified playVerse to handle chapter-wide position
+  const playVerse = useCallback(async (index, startOffset = 0) => {
+    if (!isMountedRef.current || isLoadingRef.current || !chapterAudioRef.current.isInitialized) return;
+    if (index < 0 || index >= verses.length) return;
+
+    isLoadingRef.current = true;
+
+    try {
+      await cleanup();
+      
+      const sound = chapterAudioRef.current.sounds[index];
+      if (!sound) throw new Error('Verse audio not initialized');
+
+      currentSound.current = sound;
+      setCurrentVerseIndex(index);
+
+      // Set up status monitoring
+      statusListenerRef.current = (status) => {
+        if (!status.isLoaded || !isMountedRef.current) return;
+
+        updateProgress(status);
+
+        if (status.didJustFinish) {
+          handleVerseFinished(index);
+        }
+      };
+
+      sound.setOnPlaybackStatusUpdate(statusListenerRef.current);
+      await sound.setPositionAsync(startOffset);
+      await sound.playAsync();
+      setIsPlaying(true);
+      setIsProcessing(false);
+      isLoadingRef.current = false;
+
+    } catch (err) {
+      const handledError = handleError(err);
+      console.error('Error playing verse:', handledError);
+      if (isMountedRef.current) {
+        setError(handledError);
+        setIsProcessing(false);
+        setIsPlaying(false);
+        isLoadingRef.current = false;
+      }
+    }
+  }, [verses, updateProgress, cleanup]);
+
+  // Handle seeking through chapter
+  const seekToPosition = useCallback(async (position) => {
+    if (!chapterAudioRef.current.isInitialized) return;
+
+    const { verseIndex, offset } = getVerseFromPosition(position);
+    await playVerse(verseIndex, offset);
+  }, [getVerseFromPosition, playVerse]);
+
+  // Initialize on mount
   useEffect(() => {
+    initializeChapter();
     return () => {
       cleanup();
+      // Cleanup preloaded sounds
+      chapterAudioRef.current.sounds.forEach(async (sound) => {
+        if (sound) {
+          try {
+            const status = await sound.getStatusAsync();
+            if (status.isLoaded) {
+              await sound.unloadAsync();
+            }
+          } catch (err) {
+            console.error('Error cleaning up preloaded sound:', err);
+          }
+        }
+      });
+      chapterAudioRef.current = {
+        sounds: [],
+        totalDuration: 0,
+        verseStartTimes: [],
+        verseDurations: [],
+        isInitialized: false
+      };
     };
-  }, []);
+  }, [verses, initializeChapter, cleanup]);
 
   const cleanup = useCallback(async () => {
     try {
@@ -63,7 +226,7 @@ export const useBibleAudio = (verses, { book, chapter }) => {
         }
         currentSound.current = null;
       }
-      
+
       if (nextSound.current) {
         try {
           const status = await nextSound.current.getStatusAsync();
@@ -87,57 +250,13 @@ export const useBibleAudio = (verses, { book, chapter }) => {
     }
   }, []);
 
-  const createSound = useCallback(async (verse) => {
-    if (!isMountedRef.current) return null;
-    
-    try {
-      // Minimal natural pause
-      const verseText = `<speak>${verse.text}<break time="150ms"/></speak>`;
-      const audioContent = await getGoogleTTS(verseText);
-      if (!isMountedRef.current) return null;
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: `data:audio/mp3;base64,${audioContent}` },
-        { 
-          shouldPlay: false,
-          progressUpdateIntervalMillis: 50,
-          positionMillis: 0,
-          rate: 1.0,
-          volume: 1.0,
-          shouldCorrectPitch: true,
-        }
-      );
-      return sound;
-    } catch (err) {
-      console.error('Error creating sound:', err);
-      throw err;
-    }
-  }, []);
-
-  const preloadNextVerse = useCallback(async (currentIndex) => {
-    if (!isMountedRef.current || preloadingRef.current || currentIndex >= verses.length - 1 || nextSound.current) return;
-    
-    try {
-      preloadingRef.current = true;
-      const nextVerse = verses[currentIndex + 1];
-      const sound = await createSound(nextVerse);
-      if (sound && isMountedRef.current) {
-        nextSound.current = sound;
-      }
-    } catch (err) {
-      console.error('Error preloading next verse:', err);
-    } finally {
-      preloadingRef.current = false;
-    }
-  }, [verses, createSound]);
-
   const handleVerseFinished = useCallback(async (index) => {
     if (!isMountedRef.current) return;
-    
+
     try {
       if (index < verses.length - 1) {
         const nextIndex = index + 1;
-        playVerse(nextIndex);
+        await playVerse(nextIndex);
       } else {
         await cleanup();
       }
@@ -147,121 +266,121 @@ export const useBibleAudio = (verses, { book, chapter }) => {
     }
   }, [verses, cleanup, playVerse]);
 
-  const playVerse = useCallback(async (index) => {
-    if (!isMountedRef.current || isLoadingRef.current) return;
-    if (index < 0 || index >= verses.length) return;
+  const preloadNextVerse = useCallback(async (currentIndex) => {
+    if (!isMountedRef.current || preloadingRef.current || currentIndex >= verses.length - 1 || nextSound.current) return;
 
-    isLoadingRef.current = true;
-    
     try {
-      // Only show processing on initial load
-      if (index === 0) {
-        setIsProcessing(true);
-      }
-      setError(null);
-
-      // Quick cleanup of current sound
-      if (currentSound.current) {
-        if (statusListenerRef.current) {
-          currentSound.current.setOnPlaybackStatusUpdate(null);
-        }
-        const status = await currentSound.current.getStatusAsync();
-        if (status.isLoaded) {
-          await currentSound.current.stopAsync();
-          await currentSound.current.unloadAsync();
-        }
-        currentSound.current = null;
-        statusListenerRef.current = null;
-      }
-
-      let sound;
-      // Use preloaded sound if available
-      if (nextSound.current && index === currentVerseIndex + 1) {
-        sound = nextSound.current;
-        nextSound.current = null;
-      } else {
-        sound = await createSound(verses[index]);
-      }
-
-      if (!sound || !isMountedRef.current) {
-        throw new Error('Sound creation failed or component unmounted');
-      }
-
-      // Set up status monitoring
-      statusListenerRef.current = (status) => {
-        if (!status.isLoaded || !isMountedRef.current) return;
-
-        if (status.didJustFinish) {
-          handleVerseFinished(index);
-        } else if (status.isPlaying && status.durationMillis) {
-          const progress = status.positionMillis / status.durationMillis;
-          if (progress > 0.6 && !preloadingRef.current) {
-            preloadNextVerse(index);
-          }
-        }
-      };
-
-      sound.setOnPlaybackStatusUpdate(statusListenerRef.current);
-      currentSound.current = sound;
-      await sound.playAsync();
-      
-      if (isMountedRef.current) {
-        setCurrentVerseIndex(index);
-        setIsPlaying(true);
-        setIsProcessing(false);
-      }
-
-      // Start preloading next verse immediately
-      if (index < verses.length - 1 && !preloadingRef.current) {
-        preloadNextVerse(index);
+      preloadingRef.current = true;
+      const nextVerse = verses[currentIndex + 1];
+      const sound = await createSound(nextVerse);
+      if (sound && isMountedRef.current) {
+        nextSound.current = sound;
       }
     } catch (err) {
-      console.error('Error playing verse:', err);
+      const handledError = handleError(err);
+      console.error('Error preloading next verse:', handledError);
       if (isMountedRef.current) {
-        setError(err.message);
-        setIsProcessing(false);
+        setError(handledError);
       }
-      await cleanup();
     } finally {
-      isLoadingRef.current = false;
+      preloadingRef.current = false;
     }
-  }, [verses, cleanup, createSound, preloadNextVerse, handleVerseFinished, currentVerseIndex]);
+  }, [verses, createSound]);
+
+  const createSound = useCallback(async (verse) => {
+    if (!isMountedRef.current) return null;
+
+    try {
+      const verseText = `<speak>${verse.text}<break time="150ms"/></speak>`;
+      const audioContent = await getGoogleTTS(verseText);
+      if (!isMountedRef.current) return null;
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: `data:audio/mp3;base64,${audioContent}` },
+        {
+          shouldPlay: false,
+          progressUpdateIntervalMillis: 50,
+          positionMillis: 0,
+          rate: 1.0,
+          volume: 1.0,
+          shouldCorrectPitch: true,
+        }
+      );
+
+      // Get duration for progress tracking
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        progressRef.current.verseDurations[verse.number - 1] = status.durationMillis / 1000;
+        progressRef.current.totalDuration = progressRef.current.verseDurations.reduce((a, b) => a + b, 0);
+
+        // Calculate verse start times
+        let startTime = 0;
+        progressRef.current.verseStartTimes = progressRef.current.verseDurations.map(duration => {
+          const time = startTime;
+          startTime += duration;
+          return time;
+        });
+      }
+
+      return sound;
+    } catch (err) {
+      const handledError = handleError(err);
+      console.error('Error creating sound:', handledError);
+      throw handledError;
+    }
+  }, []);
+
+  // Initialize audio session
+  useEffect(() => {
+    const initAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+          shouldDuckAndroid: true,
+          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+        });
+      } catch (err) {
+        const handledError = handleError(err);
+        console.error('Error initializing audio:', handledError);
+        if (isMountedRef.current) {
+          setError(handledError);
+        }
+      }
+    };
+    initAudio();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
 
   const pausePlayback = useCallback(async () => {
-    if (!isMountedRef.current || !currentSound.current) return;
-    
     try {
-      const status = await currentSound.current.getStatusAsync();
-      if (status.isLoaded && status.isPlaying) {
+      if (currentSound.current) {
         await currentSound.current.pauseAsync();
-        if (isMountedRef.current) {
-          setIsPlaying(false);
-        }
+        setIsPlaying(false);
       }
     } catch (err) {
       console.error('Error pausing playback:', err);
-      if (isMountedRef.current) {
-        setError(err.message);
-      }
     }
   }, []);
 
   const resumePlayback = useCallback(async () => {
-    if (!isMountedRef.current || !currentSound.current) return;
-    
     try {
-      const status = await currentSound.current.getStatusAsync();
-      if (status.isLoaded && !status.isPlaying) {
+      if (currentSound.current) {
         await currentSound.current.playAsync();
-        if (isMountedRef.current) {
-          setIsPlaying(true);
-        }
+        setIsPlaying(true);
       }
     } catch (err) {
       console.error('Error resuming playback:', err);
-      if (isMountedRef.current) {
-        setError(err.message);
-      }
     }
   }, []);
 
@@ -270,9 +389,6 @@ export const useBibleAudio = (verses, { book, chapter }) => {
       await cleanup();
     } catch (err) {
       console.error('Error stopping playback:', err);
-      if (isMountedRef.current) {
-        setError(err.message);
-      }
     }
   }, [cleanup]);
 
@@ -281,9 +397,14 @@ export const useBibleAudio = (verses, { book, chapter }) => {
     isProcessing,
     currentVerseIndex,
     error,
+    progress,
+    isChapterReady,
     playVerse,
+    seekToPosition,
     pausePlayback,
     resumePlayback,
     stopPlayback
   };
 };
+
+export default useBibleAudio;

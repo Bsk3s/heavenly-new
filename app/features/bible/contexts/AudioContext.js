@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Audio } from 'expo-av';
-import { useAudioSession } from '../../audio/hooks/useAudioSession';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
+import useAudioSession from '../hooks/useAudioSession';
 import { getGoogleTTS } from '../services/ttsService';
 
 const AudioContext = createContext(null);
@@ -53,11 +53,11 @@ export function AudioProvider({ children }) {
       );
 
       setSound(newSound);
-      setState(current => ({
-        ...current,
+      setState(current => ({ 
+        ...current, 
         isPlaying: true,
         currentVerse: verse,
-        error: null
+        error: null 
       }));
 
       // Add status monitoring
@@ -77,8 +77,8 @@ export function AudioProvider({ children }) {
 
     } catch (error) {
       console.error('Playback error:', error);
-      setState(current => ({
-        ...current,
+      setState(current => ({ 
+        ...current, 
         isPlaying: false,
         error: error.message
       }));
@@ -115,12 +115,12 @@ export function AudioProvider({ children }) {
         await sound.stopAsync();
         await sound.unloadAsync();
         setSound(null);
-        setState(current => ({
-          ...current,
-          isPlaying: false,
-          currentVerse: null,
-          progress: { position: 0, duration: 0 }
-        }));
+    setState(current => ({ 
+      ...current, 
+      isPlaying: false,
+      currentVerse: null,
+      progress: { position: 0, duration: 0 }
+    }));
       }
     } catch (error) {
       console.error('Stop error:', error);
@@ -177,6 +177,6 @@ export function useAudio() {
     throw new Error('useAudio must be used within an AudioProvider');
   }
   return context;
-}
+} 
 
 export default AudioContext; 
