@@ -5,11 +5,11 @@ import { useAudioSession } from '../hooks/useAudioSession';
 import { handlePlaybackError } from '../utils/errorHandling';
 import { PLAYBACK_SPEEDS } from '../constants/audio';
 
-const BibleAudioPlayer = ({ 
-  chapter, 
-  bookName, 
+const BibleAudioPlayer = ({
+  chapter,
+  bookName,
   chapterNumber,
-  onHighlightVerse 
+  onHighlightVerse
 }) => {
   // State management
   const [state, setState] = useState({
@@ -48,7 +48,7 @@ const BibleAudioPlayer = ({
   // Render verses with highlighting
   const renderVerses = () => {
     return chapter?.map((verse, index) => (
-      <TouchableOpacity 
+      <TouchableOpacity
         key={verse.verseNumber}
         style={[
           styles.verseContainer,
@@ -80,7 +80,7 @@ const BibleAudioPlayer = ({
 
       {/* Controls */}
       <View style={styles.controlsContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.playButton}
           onPress={playAudio}
           disabled={state.isLoading}
@@ -88,10 +88,10 @@ const BibleAudioPlayer = ({
           {state.isLoading ? (
             <ActivityIndicator size="large" color="#fff" />
           ) : (
-            <MaterialIcons 
-              name={state.isPlaying ? "pause" : "play-arrow"} 
-              size={32} 
-              color="#fff" 
+            <MaterialIcons
+              name={state.isPlaying ? "pause" : "play-arrow"}
+              size={32}
+              color="#fff"
             />
           )}
         </TouchableOpacity>

@@ -28,7 +28,7 @@ export default function Index() {
     try {
       const isAuthenticated = await AsyncStorage.getItem('isAuthenticated');
       const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
-      
+
       if (isAuthenticated === 'true') {
         if (onboardingCompleted === 'true') {
           // TEMPORARY: Direct navigation to tabs for testing
@@ -58,22 +58,22 @@ export default function Index() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <StatusBar style="dark" />
-      
+
       {/* Main Content */}
       <View className="flex-1 justify-center items-center">
         <Text className="text-3xl font-bold text-center mb-2">
           {displayedText}
         </Text>
-        <Text 
+        <Text
           className="text-3xl font-light text-center"
           style={{ color: textColor }}
         >
           {text}
         </Text>
       </View>
-      
+
       {/* Bottom Buttons */}
-      <View 
+      <View
         className="absolute left-0 right-0"
         style={{
           bottom: insets.bottom + 18 // Increased from 16 to 48 to move buttons up
@@ -85,9 +85,9 @@ export default function Index() {
             title="Get Started"
           />
         </View>
-        
+
         <View className="items-center">
-          <Button 
+          <Button
             onPress={handleLogin}
             title="I already have an account"
           />
@@ -95,20 +95,20 @@ export default function Index() {
       </View>
 
       {/* Sliders */}
-      <View 
+      <View
         className="absolute left-0 right-0"
         style={{
           bottom: 0
         }}
       >
-        <SignUpSlider 
-          isOpen={isSignUpOpen} 
-          onClose={() => setIsSignUpOpen(false)} 
+        <SignUpSlider
+          isOpen={isSignUpOpen}
+          onClose={() => setIsSignUpOpen(false)}
         />
-        
-        <SignInSlider 
-          isOpen={isSignInOpen} 
-          onClose={() => setIsSignInOpen(false)} 
+
+        <SignInSlider
+          isOpen={isSignInOpen}
+          onClose={() => setIsSignInOpen(false)}
         />
       </View>
     </SafeAreaView>

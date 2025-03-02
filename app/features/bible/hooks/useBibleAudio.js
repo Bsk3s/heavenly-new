@@ -113,28 +113,41 @@ const useBibleAudio = (verses, { book, chapter }) => {
   const updateProgress = useCallback((status) => {
     if (!status.isLoaded || !isMountedRef.current) return;
 
-    const verseTime = status.positionMillis / 1000;
-    const currentVerseStartTime = chapterAudioRef.current.verseStartTimes[currentVerseIndex] || 0;
-    const chapterCurrentTime = currentVerseStartTime + verseTime;
-    const chapterProgress = chapterCurrentTime / chapterAudioRef.current.totalDuration;
-
+    // Calculate chapter-wide progress
+    const verseStartTime = chapterAudioRef.current.verseStartTimes[currentVerseIndex] || 0;
+    const versePosition = status.positionMillis / 1000; // Convert to seconds
+    const chapterPosition = verseStartTime + versePosition;
+    
     setProgress({
-      currentTime: chapterCurrentTime,
+      currentTime: chapterPosition,
       duration: chapterAudioRef.current.totalDuration,
-      progress: chapterProgress
+      progress: chapterPosition / chapterAudioRef.current.totalDuration
     });
   }, [currentVerseIndex]);
 
-  // Modified playVerse to handle chapter-wide position
+  // Modified playVerse to handle seeking better
   const playVerse = useCallback(async (index, startOffset = 0) => {
-    if (!isMountedRef.current || isLoadingRef.current || !chapterAudioRef.current.isInitialized) return;
+    if (!isMountedRef.current || !chapterAudioRef.current.isInitialized) return;
     if (index < 0 || index >= verses.length) return;
 
-    isLoadingRef.current = true;
-
     try {
+      setIsProcessing(true);
+
+      // If we're seeking within the same verse, just seek
+      if (index === currentVerseIndex && currentSound.current) {
+        const status = await currentSound.current.getStatusAsync();
+        if (status.isLoaded) {
+          await currentSound.current.setPositionAsync(startOffset);
+          await currentSound.current.playAsync();
+          setIsPlaying(true);
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      // Otherwise, clean up and play new verse
       await cleanup();
-      
+
       const sound = chapterAudioRef.current.sounds[index];
       if (!sound) throw new Error('Verse audio not initialized');
 
@@ -153,31 +166,76 @@ const useBibleAudio = (verses, { book, chapter }) => {
       };
 
       sound.setOnPlaybackStatusUpdate(statusListenerRef.current);
-      await sound.setPositionAsync(startOffset);
+
+      // Set position and play
+      if (startOffset > 0) {
+        await sound.setPositionAsync(startOffset);
+      }
       await sound.playAsync();
+
       setIsPlaying(true);
-      setIsProcessing(false);
-      isLoadingRef.current = false;
+      setError(null);
 
     } catch (err) {
-      const handledError = handleError(err);
-      console.error('Error playing verse:', handledError);
-      if (isMountedRef.current) {
-        setError(handledError);
-        setIsProcessing(false);
-        setIsPlaying(false);
-        isLoadingRef.current = false;
-      }
+      console.error('Error playing verse:', err);
+      setError({
+        type: 'AUDIO',
+        title: 'Playback Error',
+        message: 'Failed to play audio. Please try again.',
+        action: 'Retry',
+        originalError: err
+      });
+      await cleanup();
+    } finally {
+      setIsProcessing(false);
     }
-  }, [verses, updateProgress, cleanup]);
+  }, [verses, cleanup, updateProgress, handleVerseFinished]);
 
-  // Handle seeking through chapter
+  // Update the seekToPosition function
   const seekToPosition = useCallback(async (position) => {
     if (!chapterAudioRef.current.isInitialized) return;
+    
+    try {
+      setIsProcessing(true);
+      
+      // Calculate target time and verse
+      const targetTime = position * chapterAudioRef.current.totalDuration;
+      const { verseIndex, offset } = getVerseFromPosition(targetTime);
+      
+      // Update progress immediately for smoother UI
+      setProgress(prev => ({
+        ...prev,
+        currentTime: targetTime,
+        progress: position
+      }));
 
-    const { verseIndex, offset } = getVerseFromPosition(position);
-    await playVerse(verseIndex, offset);
-  }, [getVerseFromPosition, playVerse]);
+      // If we're already on the correct verse, just seek
+      if (verseIndex === currentVerseIndex && currentSound.current) {
+        const status = await currentSound.current.getStatusAsync();
+        if (status.isLoaded) {
+          await currentSound.current.setPositionAsync(offset);
+          await currentSound.current.playAsync();
+          setIsPlaying(true);
+          setIsProcessing(false);
+          return;
+        }
+      }
+      
+      // Otherwise play the new verse
+      await playVerse(verseIndex, offset);
+    } catch (err) {
+      console.error('Error seeking:', err);
+      setError({
+        type: 'AUDIO',
+        title: 'Seeking Error',
+        message: 'Failed to seek to position. Please try again.',
+        action: 'Retry',
+        originalError: err
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [getVerseFromPosition, playVerse, currentVerseIndex]);
 
   // Initialize on mount
   useEffect(() => {
@@ -209,11 +267,13 @@ const useBibleAudio = (verses, { book, chapter }) => {
 
   const cleanup = useCallback(async () => {
     try {
+      // Remove status listener
       if (statusListenerRef.current && currentSound.current) {
         currentSound.current.setOnPlaybackStatusUpdate(null);
       }
       statusListenerRef.current = null;
 
+      // Cleanup current sound
       if (currentSound.current) {
         try {
           const status = await currentSound.current.getStatusAsync();
@@ -224,9 +284,9 @@ const useBibleAudio = (verses, { book, chapter }) => {
         } catch (err) {
           console.error('Error cleaning up current sound:', err);
         }
-        currentSound.current = null;
       }
 
+      // Cleanup next sound
       if (nextSound.current) {
         try {
           const status = await nextSound.current.getStatusAsync();
@@ -236,9 +296,9 @@ const useBibleAudio = (verses, { book, chapter }) => {
         } catch (err) {
           console.error('Error cleaning up next sound:', err);
         }
-        nextSound.current = null;
       }
 
+      // Reset state if component is still mounted
       if (isMountedRef.current) {
         setCurrentVerseIndex(-1);
         setIsPlaying(false);
@@ -247,15 +307,31 @@ const useBibleAudio = (verses, { book, chapter }) => {
       }
     } catch (err) {
       console.error('Error in cleanup:', err);
+    } finally {
+      currentSound.current = null;
+      nextSound.current = null;
     }
   }, []);
 
+  // Update the handleVerseFinished function
   const handleVerseFinished = useCallback(async (index) => {
     if (!isMountedRef.current) return;
 
     try {
       if (index < verses.length - 1) {
         const nextIndex = index + 1;
+        // Calculate next verse start time
+        const nextStartTime = chapterAudioRef.current.verseStartTimes[nextIndex];
+        const totalDuration = chapterAudioRef.current.totalDuration;
+        
+        // Update progress before playing next verse
+        setProgress(prev => ({
+          ...prev,
+          currentTime: nextStartTime,
+          progress: nextStartTime / totalDuration
+        }));
+        
+        // Play next verse
         await playVerse(nextIndex);
       } else {
         await cleanup();
@@ -362,27 +438,45 @@ const useBibleAudio = (verses, { book, chapter }) => {
     };
   }, [cleanup]);
 
+  // Modified pausePlayback to be more robust
   const pausePlayback = useCallback(async () => {
     try {
       if (currentSound.current) {
-        await currentSound.current.pauseAsync();
-        setIsPlaying(false);
+        const status = await currentSound.current.getStatusAsync();
+        if (status.isLoaded && status.isPlaying) {
+          await currentSound.current.pauseAsync();
+        }
       }
+      setIsPlaying(false);
     } catch (err) {
       console.error('Error pausing playback:', err);
     }
   }, []);
 
+  // Modified resumePlayback to be more robust
   const resumePlayback = useCallback(async () => {
     try {
       if (currentSound.current) {
-        await currentSound.current.playAsync();
-        setIsPlaying(true);
+        const status = await currentSound.current.getStatusAsync();
+        if (status.isLoaded) {
+          await currentSound.current.playAsync();
+          setIsPlaying(true);
+          return;
+        }
       }
+      // If we can't resume, try playing from current position
+      await playVerse(currentVerseIndex);
     } catch (err) {
       console.error('Error resuming playback:', err);
+      setError({
+        type: 'AUDIO',
+        title: 'Playback Error',
+        message: 'Failed to resume audio. Please try again.',
+        action: 'Retry',
+        originalError: err
+      });
     }
-  }, []);
+  }, [currentVerseIndex, playVerse]);
 
   const stopPlayback = useCallback(async () => {
     try {

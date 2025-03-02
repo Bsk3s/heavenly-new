@@ -1,16 +1,20 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { View, Text, ActivityIndicator, TouchableOpacity, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import Animated, {
+  useSharedValue,
   useAnimatedGestureHandler,
-  useAnimatedStyle,
   withSpring,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
   runOnJS,
-  useSharedValue
+  withTiming,
+  Extrapolate,
+  interpolate,
 } from 'react-native-reanimated';
 
 // Import hooks
@@ -31,12 +35,24 @@ import VerseItem from '../features/bible/components/VerseItem';
 import NavigationControls from '../features/bible/components/NavigationControls';
 import SelectionModal from '../features/bible/components/SelectionModal';
 import AudioError from '../features/bible/components/AudioError';
-import AudioProgress from '../features/bible/components/AudioProgress';
+import AudioPlayer from '../features/bible/components/AudioPlayer';
+import FloatingNavigation from '../features/bible/components/FloatingNavigation';
 
 // Import API service
 import { searchBible } from '../features/bible/api/bibleService';
 
-function BibleContent() {
+// Add padding constant at the top
+const HORIZONTAL_PADDING = 20;
+
+// Add this near the top with other utility functions
+const formatTime = (seconds) => {
+  if (!seconds) return '0:00';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
+const Bible = () => {
   const router = useRouter();
   const scrollViewRef = useRef(null);
 
@@ -50,6 +66,9 @@ function BibleContent() {
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [showBookModal, setShowBookModal] = useState(false);
   const [showChapterModal, setShowChapterModal] = useState(false);
+
+  // State for player expansion
+  const [isPlayerExpanded, setIsPlayerExpanded] = useState(true);
 
   // Use custom hooks
   const {
@@ -106,31 +125,102 @@ function BibleContent() {
   });
 
   const translateX = useSharedValue(0);
+  const scrollY = useSharedValue(0);
 
-  const panGestureEvent = useAnimatedGestureHandler({
-    onStart: (_, context) => {
-      context.x = translateX.value;
-    },
-    onActive: (event, context) => {
-      translateX.value = context.x + event.translationX;
-    },
-    onEnd: (event) => {
-      if (Math.abs(event.velocityX) > 500) {
-        if (event.velocityX > 0) {
-          runOnJS(handleNavigate)('prev');
-        } else {
-          runOnJS(handleNavigate)('next');
-        }
-      }
-      translateX.value = withSpring(0);
-    },
-  });
+  // Add this with other state
+  const progressBarWidth = useSharedValue(0);
+  const isDragging = useSharedValue(false);
 
-  const rStyle = useAnimatedStyle(() => {
+  // Add these with other shared values
+  const progressWidth = useSharedValue(0);
+  const knobPosition = useSharedValue(0);
+
+  // Add these with other shared values at the top
+  const sliderProgress = useSharedValue(0);
+  const sliderWidth = useSharedValue(0);
+
+  // Replace the animated styles
+  const progressBarStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX: translateX.value }],
+      width: `${sliderProgress.value * 100}%`,
+      height: '100%',
+      backgroundColor: '#3B82F6',
+      borderRadius: 2,
     };
   });
+
+  const knobStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      right: -8,
+      top: -6,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: '#3B82F6',
+      transform: [{ scale: isDragging.value ? 1.2 : 1 }],
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    };
+  });
+
+  // Replace the seek gesture handler
+  const seekGestureHandler = useAnimatedGestureHandler({
+    onStart: (event, context) => {
+      context.startX = event.x;
+      isDragging.value = true;
+      runOnJS(pausePlayback)();
+      runOnJS(Haptics.selectionAsync)();
+    },
+    onActive: (event, context) => {
+      if (sliderWidth.value === 0) return;
+      
+      // Calculate position relative to the progress bar
+      const progressBarBounds = event.x - context.startX + (sliderProgress.value * sliderWidth.value);
+      const newProgress = Math.max(0, Math.min(1, progressBarBounds / sliderWidth.value));
+      sliderProgress.value = newProgress;
+      runOnJS(updateSeekPosition)(newProgress);
+    },
+    onEnd: () => {
+      isDragging.value = false;
+      runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
+      runOnJS(finishSeeking)();
+    },
+  });
+
+  // Add these new handlers for seeking
+  const [seekPosition, setSeekPosition] = useState(0);
+
+  const updateSeekPosition = useCallback((progress) => {
+    setSeekPosition(progress);
+  }, []);
+
+  const finishSeeking = useCallback(async () => {
+    try {
+      if (seekPosition >= 0) {
+        const newTime = progress.duration * seekPosition;
+        await playVerse(currentVerseIndex, newTime);
+      }
+    } catch (err) {
+      console.error('Error seeking:', err);
+    }
+  }, [seekPosition, progress.duration, currentVerseIndex, playVerse]);
+
+  // Update the layout callback
+  const onProgressBarLayout = useCallback((event) => {
+    const { width } = event.nativeEvent.layout;
+    sliderWidth.value = width;
+  }, []);
+
+  // Update the progress effect
+  useEffect(() => {
+    if (!isDragging.value) {
+      sliderProgress.value = progress.progress || 0;
+    }
+  }, [progress.progress]);
 
   // Handle search
   const handleSearch = async () => {
@@ -209,13 +299,29 @@ function BibleContent() {
   }, [isPlaying, currentVerseIndex, pausePlayback, resumePlayback, playVerse]);
 
   // Handle audio retry
-  const handleAudioRetry = useCallback(() => {
-    if (currentVerseIndex >= 0) {
-      playVerse(currentVerseIndex);
-    } else {
-      playVerse(0);
+  const handleAudioRetry = useCallback(async () => {
+    await stopPlayback();
+    await new Promise(resolve => setTimeout(resolve, 500)); // Add small delay
+    await playVerse(currentVerseIndex);
+  }, [currentVerseIndex, stopPlayback, playVerse]);
+
+  // Handle audio seek
+  const seekToPosition = useCallback(async (newProgress) => {
+    try {
+      if (isAudioProcessing) return;
+
+      // Pause current playback
+      await pausePlayback();
+
+      // Calculate new position
+      const newTime = progress.duration * newProgress;
+
+      // Play from new position
+      await playVerse(currentVerseIndex, newTime);
+    } catch (err) {
+      console.error('Error seeking to position:', err);
     }
-  }, [currentVerseIndex, playVerse]);
+  }, [isAudioProcessing, progress.duration, currentVerseIndex, pausePlayback, playVerse]);
 
   // Loading state
   const isLoading = loadingVersions || loadingBooks || loadingChapters || loadingContent;
@@ -281,213 +387,259 @@ function BibleContent() {
     </TouchableOpacity>
   );
 
-  // Handle audio seek
-  const seekToPosition = (newProgress) => {
-    if (!isAudioProcessing) {
-      const newTime = progress.duration * newProgress;
-      playVerse(currentVerseIndex, newTime);
-    }
-  };
+  // Add scroll handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PanGestureHandler onGestureEvent={panGestureEvent}>
-        <Animated.View style={[{ flex: 1 }, rStyle]}>
-          <View className="flex-1 bg-white">
-            <View className="bg-white border-b border-gray-200">
-              <StatusBar style="dark" />
+      <View className="flex-1 bg-white">
+        <StatusBar style="dark" />
 
-              <BibleHeader
-                currentBook={currentBook?.name}
-                currentChapter={currentChapter?.number}
-                currentVersion={currentVersion?.abbreviation}
-                onBookPress={() => setShowBookModal(true)}
-                onVersionPress={() => setShowVersionModal(true)}
-                onAudioPress={handleAudioPress}
-                onSearchPress={() => setIsSearchOpen(!isSearchOpen)}
-                onMorePress={() => { }}
-                isPlaying={isPlaying}
-                isLoading={isAudioProcessing}
-                className="bg-white"
-              />
+        <View style={{ paddingHorizontal: HORIZONTAL_PADDING }}>
+          <BibleHeader
+            currentBook={currentBook?.name}
+            currentChapter={currentChapter?.number}
+            currentVersion={currentVersion?.abbreviation}
+            onBookPress={() => setShowBookModal(true)}
+            onVersionPress={() => setShowVersionModal(true)}
+            onAudioPress={handleAudioPress}
+            onSearchPress={() => setIsSearchOpen(!isSearchOpen)}
+            onMorePress={() => { }}
+            isPlaying={isPlaying}
+            isLoading={isAudioProcessing}
+            className="bg-white"
+          />
 
-              {isSearchOpen && (
-                <SearchBar
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmit={handleSearch}
-                />
-              )}
+          {/* Subtle Divider */}
+          <View
+            style={{
+              height: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.06)',
+              marginBottom: 8,
+            }}
+          />
 
-              {/* Verse Progress */}
-              <View className="flex-row justify-between items-center px-4 py-2">
-                <Text className="text-sm text-gray-600">
-                  Verse {(currentVerseIndex + 1)} of {parsedVerses.length}
+          {isSearchOpen && (
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmit={handleSearch}
+            />
+          )}
+
+          {/* Audio Progress Section */}
+          {isPlaying && (
+            <View style={{ marginBottom: 12 }}>
+              {/* Verse Counter and Time */}
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 8
+              }}>
+                <Text style={{ fontSize: 14, color: '#64748B' }}>
+                  Verse {currentVerseIndex + 1} of {parsedVerses.length}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#64748B' }}>
+                  {formatTime(progress.currentTime)} / {formatTime(progress.duration)}
                 </Text>
               </View>
 
-              {audioError && (
-                <AudioError
-                  error={audioError}
-                  onRetry={handleAudioRetry}
-                  style={{ marginHorizontal: 20, marginTop: 8, marginBottom: 4 }}
-                />
-              )}
-
-              {/* Audio Progress */}
-              {isPlaying && (
-                <AudioProgress
-                  progress={progress.progress}
-                  duration={progress.duration}
-                  currentTime={progress.currentTime}
-                  isPlaying={isPlaying}
-                  onSeek={seekToPosition}
-                  onPrevious={() => playVerse(Math.max(0, currentVerseIndex - 1))}
-                  onNext={() => playVerse(Math.min(parsedVerses.length - 1, currentVerseIndex + 1))}
-                  onPlayPause={handleAudioPress}
-                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
-                />
-              )}
-            </View>
-
-            <ScrollView
-              ref={scrollViewRef}
-              className="flex-1 px-5"
-              showsVerticalScrollIndicator={false}
-            >
-              {isLoading ? (
-                <View className="flex-1 items-center justify-center py-10">
-                  <ActivityIndicator size="large" color="#4B5563" />
-                  <Text className="text-gray-500 mt-2">Loading Bible content...</Text>
-                </View>
-              ) : isSearchOpen && searchResults.length > 0 ? (
-                // Search results
-                <>
-                  <Text className="text-xl font-bold text-gray-900 mb-4">
-                    Search Results for "{searchQuery}"
-                  </Text>
-                  {searchResults.map(verse => (
-                    <VerseItem
-                      key={verse.id}
-                      verse={verse}
-                      isHighlighted={highlightedVerses.includes(verse.id)}
-                      isSelected={selectedVerse === verse.id}
-                      onPress={() => handleVersePress(verse.id)}
-                      onHighlight={handleVerseHighlight}
-                      onDiscuss={handleVerseDiscuss}
-                    />
-                  ))}
-                </>
-              ) : isSearchOpen && isSearching ? (
-                <View className="flex-1 items-center justify-center py-10">
-                  <ActivityIndicator size="small" color="#4B5563" />
-                  <Text className="text-gray-500 mt-2">Searching...</Text>
-                </View>
-              ) : isSearchOpen && searchQuery && searchResults.length === 0 ? (
-                <View className="flex-1 items-center justify-center py-10">
-                  <Text className="text-gray-500">No results found for "{searchQuery}"</Text>
-                </View>
-              ) : (
-                // Bible content
-                <>
-                  {reference && (
-                    <Text
-                      className="text-gray-900 mb-4 mt-4"
-                      style={{
-                        fontSize: 28,
-                        fontWeight: '600',
-                        letterSpacing: 0.3
-                      }}
-                    >
-                      {reference}
-                    </Text>
-                  )}
-
-                  {chapterTitle && (
-                    <Text
-                      className="text-gray-900 mb-6"
-                      style={{
-                        fontSize: 24,
-                        lineHeight: 32,
-                        fontWeight: '600',
-                        fontFamily: 'System'
-                      }}
-                    >
-                      {chapterTitle}
-                    </Text>
-                  )}
-
-                  <View className="mb-24">
-                    {parsedVerses.map((verse, index) => {
-                      const isFirstInParagraph = index === 0 ||
-                        verse.text.startsWith('But ') ||
-                        verse.text.startsWith('And ') ||
-                        verse.text.startsWith('Then ') ||
-                        verse.text.startsWith('Now ') ||
-                        verse.text.includes('. ') ||
-                        verse.text.length > 150;
-
-                      return (
-                        <VerseItem
-                          key={verse.id}
-                          verse={verse}
-                          isHighlighted={highlightedVerses.includes(verse.id)}
-                          isSelected={selectedVerse === verse.id}
-                          onPress={() => handleVersePress(verse.id)}
-                          onHighlight={handleVerseHighlight}
-                          onDiscuss={handleVerseDiscuss}
-                          isFirstInParagraph={isFirstInParagraph}
-                        />
-                      );
-                    })}
+              {/* Progress Bar */}
+              <PanGestureHandler onGestureEvent={seekGestureHandler}>
+                <Animated.View
+                  onLayout={onProgressBarLayout}
+                  style={{
+                    height: 30,
+                    justifyContent: 'center',
+                    paddingVertical: 12,
+                  }}
+                >
+                  <View style={{
+                    height: 4,
+                    backgroundColor: 'rgba(226, 232, 240, 0.8)',
+                    borderRadius: 2,
+                    overflow: 'visible',
+                  }}>
+                    <Animated.View style={progressBarStyle}>
+                      <Animated.View style={knobStyle} />
+                    </Animated.View>
                   </View>
-                </>
+                </Animated.View>
+              </PanGestureHandler>
+            </View>
+          )}
+
+          {audioError && (
+            <AudioError
+              error={audioError}
+              onRetry={handleAudioRetry}
+              style={{ marginTop: 8, marginBottom: 4 }}
+            />
+          )}
+        </View>
+
+        {/* Main Content with Gesture Zones */}
+        <Animated.ScrollView
+          ref={scrollViewRef}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          className="flex-1"
+          contentContainerStyle={{ paddingHorizontal: HORIZONTAL_PADDING }}
+        >
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center py-10">
+              <ActivityIndicator size="large" color="#4B5563" />
+              <Text className="text-gray-500 mt-2">Loading Bible content...</Text>
+            </View>
+          ) : isSearchOpen && searchResults.length > 0 ? (
+            // Search results
+            <>
+              <Text className="text-xl font-bold text-gray-900 mb-4">
+                Search Results for "{searchQuery}"
+              </Text>
+              {searchResults.map(verse => (
+                <VerseItem
+                  key={verse.id}
+                  verse={verse}
+                  isHighlighted={highlightedVerses.includes(verse.id)}
+                  isSelected={selectedVerse === verse.id}
+                  onPress={() => handleVersePress(verse.id)}
+                  onHighlight={handleVerseHighlight}
+                  onDiscuss={handleVerseDiscuss}
+                />
+              ))}
+            </>
+          ) : isSearchOpen && isSearching ? (
+            <View className="flex-1 items-center justify-center py-10">
+              <ActivityIndicator size="small" color="#4B5563" />
+              <Text className="text-gray-500 mt-2">Searching...</Text>
+            </View>
+          ) : isSearchOpen && searchQuery && searchResults.length === 0 ? (
+            <View className="flex-1 items-center justify-center py-10">
+              <Text className="text-gray-500">No results found for "{searchQuery}"</Text>
+            </View>
+          ) : (
+            // Bible content
+            <>
+              {reference && (
+                <Text
+                  className="text-gray-900 mb-4 mt-4"
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '600',
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {reference}
+                </Text>
               )}
-            </ScrollView>
 
-            {/* Modals */}
-            <SelectionModal
-              visible={showVersionModal}
-              title="Select Bible Version"
-              sections={versionSections}
-              renderItem={renderVersionItem}
-              renderSectionHeader={renderVersionSectionHeader}
-              onClose={() => setShowVersionModal(false)}
-              keyExtractor={(item) => item.id}
-            />
+              {chapterTitle && (
+                <Text
+                  className="text-gray-900 mb-6"
+                  style={{
+                    fontSize: 24,
+                    lineHeight: 32,
+                    fontWeight: '600',
+                    fontFamily: 'System',
+                  }}
+                >
+                  {chapterTitle}
+                </Text>
+              )}
 
-            <SelectionModal
-              visible={showBookModal}
-              title="Select Book"
-              data={books}
-              renderItem={renderBookItem}
-              onClose={() => setShowBookModal(false)}
-              keyExtractor={(item) => item.id}
-              isBookSelection={true}
-            />
+              <View className="mb-24">
+                {parsedVerses.map((verse, index) => (
+                  <Pressable
+                    key={verse.id}
+                    onPress={() => handleVersePress(verse.id)}
+                    className={`py-2 ${currentVerseIndex === index ? 'bg-gray-50' : ''
+                      }`}
+                  >
+                    <Text className="text-base leading-relaxed">
+                      <Text className="text-gray-400">{verse.number} </Text>
+                      {verse.text}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+        </Animated.ScrollView>
 
-            <SelectionModal
-              visible={showChapterModal}
-              title="Select Chapter"
-              data={chapters}
-              renderItem={renderChapterItem}
-              onClose={() => setShowChapterModal(false)}
-              keyExtractor={(item) => item.id}
-              numColumns={5}
-            />
-          </View>
-        </Animated.View>
-      </PanGestureHandler>
+        {/* Floating Navigation */}
+        {!isPlaying && (
+          <FloatingNavigation
+            onPrevious={() => handleNavigate('prev')}
+            onNext={() => handleNavigate('next')}
+            scrollY={scrollY}
+          />
+        )}
+
+        {/* Audio Player */}
+        {isPlaying && (
+          <AudioPlayer
+            isPlaying={isPlaying}
+            progress={progress.progress}
+            duration={progress.duration}
+            currentTime={progress.currentTime}
+            currentVerse={currentVerseIndex + 1}
+            totalVerses={parsedVerses.length}
+            onSeek={seekToPosition}
+            onPrevious={() => playVerse(Math.max(0, currentVerseIndex - 1))}
+            onNext={() => playVerse(Math.min(parsedVerses.length - 1, currentVerseIndex + 1))}
+            onPlayPause={handleAudioPress}
+            onDismiss={() => setIsPlayerExpanded(false)}
+            isExpanded={isPlayerExpanded}
+          />
+        )}
+      </View>
+
+      {/* Modals */}
+      <SelectionModal
+        visible={showVersionModal}
+        title="Select Bible Version"
+        sections={versionSections}
+        renderItem={renderVersionItem}
+        renderSectionHeader={renderVersionSectionHeader}
+        onClose={() => setShowVersionModal(false)}
+        keyExtractor={(item) => item.id}
+      />
+
+      <SelectionModal
+        visible={showBookModal}
+        title="Select Book"
+        data={books}
+        renderItem={renderBookItem}
+        onClose={() => setShowBookModal(false)}
+        keyExtractor={(item) => item.id}
+        isBookSelection={true}
+      />
+
+      <SelectionModal
+        visible={showChapterModal}
+        title="Select Chapter"
+        data={chapters}
+        renderItem={renderChapterItem}
+        onClose={() => setShowChapterModal(false)}
+        keyExtractor={(item) => item.id}
+        numColumns={5}
+      />
     </GestureHandlerRootView>
   );
-}
+};
 
 export default function BibleScreen() {
   return (
     <SafeAreaProvider>
       <VersesProvider>
         <AudioProvider>
-          <BibleContent />
+          <Bible />
         </AudioProvider>
       </VersesProvider>
     </SafeAreaProvider>
