@@ -91,9 +91,9 @@ const AudioPlayer = ({
   };
 
   return (
-    <View style={{ 
-      position: 'absolute', 
-      width: SCREEN_WIDTH, 
+    <View style={{
+      position: 'absolute',
+      width: SCREEN_WIDTH,
       height: SCREEN_HEIGHT,
       pointerEvents: 'box-none',
     }}>
@@ -157,10 +157,10 @@ const AudioPlayer = ({
             elevation: 5,
           }}
         >
-          <Ionicons 
-            name={isPlaying ? "pause" : "play"} 
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
             size={40}
-            color="rgba(0, 0, 0, 0.85)" 
+            color="rgba(0, 0, 0, 0.85)"
           />
         </TouchableOpacity>
 
