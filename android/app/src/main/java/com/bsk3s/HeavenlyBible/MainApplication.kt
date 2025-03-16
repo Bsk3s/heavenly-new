@@ -1,4 +1,4 @@
-package com.bsk3s.heavenlynew
+package com.bsk3s.HeavenlyBible
 
 import android.app.Application
 import android.content.res.Configuration

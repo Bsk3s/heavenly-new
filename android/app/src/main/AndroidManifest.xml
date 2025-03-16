@@ -27,7 +27,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="myapp"/>
-        <data android:scheme="com.bsk3s.heavenlynew"/>
+        <data android:scheme="com.bsk3s.HeavenlyBible"/>
       </intent-filter>
     </activity>
   </application>

@@ -1,4 +1,4 @@
-package com.bsk3s.heavenlynew
+package com.bsk3s.HeavenlyBible
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
