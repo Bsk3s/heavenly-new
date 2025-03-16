@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "heavenly-new",
+    "name": "HeavenlyBible",
     "slug": "heavenly-new",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bsk3s.heavenlynew",
+      "bundleIdentifier": "com.bsk3s.HeavenlyBible",
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       }
@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bsk3s.heavenlynew"
+      "package": "com.bsk3s.HeavenlyBible"
     },
     "web": {
       "bundler": "metro",

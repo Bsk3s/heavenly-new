@@ -10,12 +10,20 @@ export default function TabLayout() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   
-  // Get the active tab from the last segment of the path
-  const activeTab = pathname.split('/').pop() || 'index';
+  // Get the active tab from the path
+  const pathSegments = pathname.split('/');
+  let activeTab = pathSegments[pathSegments.length - 1] || 'index';
+  
+  // If we're in a nested study route, set activeTab to 'study'
+  if (pathname.includes('/(tabs)/study/')) {
+    activeTab = 'study';
+  }
 
   const handleTabChange = (tabId) => {
     if (tabId === 'index') {
       router.push('/(tabs)'); // Navigate to home tab
+    } else if (tabId === 'study') {
+      router.push('/(tabs)/study/'); // Navigate to study directory index
     } else {
       router.push(`/(tabs)/${tabId}`); // Navigate to other tabs
     }

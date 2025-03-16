@@ -1,4 +1,4 @@
-import { Text, View, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,7 +36,7 @@ export default function Index() {
           // ORIGINAL: Uncomment this and remove the above line when ready
           // router.replace('(home)/home');
         } else {
-          router.replace('/(onboarding)/onboarding-layout');
+          router.replace('/(onboarding)/denomination');
         }
       }
     } catch (error) {
@@ -45,10 +45,8 @@ export default function Index() {
   };
 
   const handleGetStarted = () => {
-    // TEMPORARY: Direct navigation to tabs for testing
-    router.push('(tabs)');
-    // ORIGINAL: Uncomment this and remove the above line when ready
-    // setIsSignUpOpen(true);
+    // Navigate directly to the first onboarding screen
+    router.push('/(onboarding)/denomination');
   };
 
   const handleLogin = () => {

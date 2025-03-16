@@ -837,6 +837,19 @@ const Bible = () => {
             scrollEventThrottle={16}
             className="flex-1"
             contentContainerStyle={{ paddingHorizontal: HORIZONTAL_PADDING }}
+            onMomentumScrollEnd={(event) => {
+              // Check if we're at the bottom when scrolling ends
+              const offsetY = event.nativeEvent.contentOffset.y;
+              const contentHeight = event.nativeEvent.contentSize.height;
+              const layoutHeight = event.nativeEvent.layoutMeasurement.height;
+              
+              // If we're near the bottom (within 20px), update the scrollY value
+              // This will help the FloatingNavigation component detect when we're at the bottom
+              if (offsetY + layoutHeight >= contentHeight - 20) {
+                // We're at the bottom
+                scrollY.value = offsetY;
+              }
+            }}
           >
             {isLoading ? (
               <View className="flex-1 items-center justify-center py-10">
@@ -923,13 +936,10 @@ const Bible = () => {
         {/* Floating Navigation */}
         {!isPlaying && (
           <FloatingNavigation
-          onPrevious={() => handleNavigate('prev')}
-          onNext={() => handleNavigate('next')}
+            onPrevious={() => handleNavigate('prev')}
+            onNext={() => handleNavigate('next')}
             scrollY={scrollY}
-          >
-            <Ionicons name="chevron-back" size={24} color="#666" />
-            <Ionicons name="chevron-forward" size={24} color="#666" />
-          </FloatingNavigation>
+          />
         )}
       </View>
 

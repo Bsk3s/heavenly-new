@@ -103,6 +103,13 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
     return `${current}m / ${goal}m`;
   };
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   // Determine if this is an empty/inactive ring for calendar view
   const isEmptyRing = isCalendarView && calculatedProgress <= 0;
 
@@ -188,15 +195,15 @@ const ActivityRing = ({ activity, onClick, size: customSize, hideText = false, i
           </Text>
           <Text 
             className="text-gray-500 text-center w-full"
-            style={{ fontSize: size * 0.13 }}
+            style={{ fontSize: size * 0.12 }}
           >
             {formatDuration(duration)}
           </Text>
           <Text 
             className="text-gray-400 text-center w-full"
-            style={{ fontSize: size * 0.13 }}
+            style={{ fontSize: size * 0.11 }}
           >
-            {streak > 0 ? `${streak} day streak` : 'No streak yet'}
+            {date ? formatDate(date) : ''}
           </Text>
         </>
       )}

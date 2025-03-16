@@ -13,7 +13,8 @@ const TabBar = ({ activeTab, onTabChange }) => {
     { id: 'study', label: 'Study' }
   ];
 
-  const tabWidth = (width - 32) / tabs.length;
+  const contentWidth = width - 32; // 16px padding on each side
+  const tabWidth = contentWidth / tabs.length;
 
   const handleTabPress = async (tabId) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -32,22 +33,36 @@ const TabBar = ({ activeTab, onTabChange }) => {
       <View className="bg-[#F3F4F6] rounded-full h-[45px] flex-row relative overflow-hidden">
         <Animated.View
           style={[
-            { width: tabWidth },
+            { 
+              width: tabWidth,
+              position: 'absolute',
+              height: 36,
+              top: 4.5,
+              borderRadius: 9999, // Full rounded
+              backgroundColor: 'white'
+            },
             indicatorStyle,
           ]}
-          className="absolute h-[36px] bg-white rounded-full top-[4.5px] left-[3px]"
         />
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.id}
             onPress={() => handleTabPress(tab.id)}
-            style={{ width: tabWidth }}
-            className="items-center justify-center"
+            style={{ 
+              width: tabWidth,
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%'
+            }}
           >
-            <Text className={`
-              text-base font-medium z-10
-              ${activeTab === tab.id ? 'text-black' : 'text-gray-500'}
-            `}>
+            <Text 
+              style={{ 
+                fontSize: 16,
+                fontWeight: '500',
+                zIndex: 10,
+                color: activeTab === tab.id ? '#000000' : '#6B7280'
+              }}
+            >
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -57,5 +72,5 @@ const TabBar = ({ activeTab, onTabChange }) => {
   );
 };
 
-export default React.memo(TabBar);
+export default TabBar;
 
