@@ -3,16 +3,15 @@
  * Handles API interactions for the Rafa persona chat functionality
  */
 
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 const { injectPersonaPrompt, extractPersonaResponse } = require('../utils/injectPersonaPrompt');
 const { streamToTTS } = require('../utils/streamToTTS');
 const rafaConfig = require('../config/rafa_agent.json');
 
-// Initialize OpenAI configuration
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+// Initialize OpenAI with the new library format
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_SECRET_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 /**
  * Process a chat message with the Rafa persona
@@ -51,15 +50,15 @@ async function handleRafaChat(req, res) {
 }
 
 /**
- * Call to OpenAI GPT service
- * @param {string} systemPrompt - The processed system prompt
- * @param {string} userMessage - The original user message
- * @param {string} sessionId - The session ID for conversation context
- * @returns {string} - The LLM response
+ * Call the LLM service to get a response from Rafa
+ * @param {string} systemPrompt - The system prompt for the AI
+ * @param {string} userMessage - The user's message
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<string>} - The AI's response
  */
 async function callLLMService(systemPrompt, userMessage, sessionId) {
   try {
-    const gptResponse = await openai.createChatCompletion({
+    const gptResponse = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
         { role: 'system', content: systemPrompt },
@@ -68,7 +67,7 @@ async function callLLMService(systemPrompt, userMessage, sessionId) {
       temperature: 0.8,
     });
 
-    const reply = gptResponse.data.choices[0].message.content;
+    const reply = gptResponse.choices[0].message.content;
     
     // Clean up the response if needed
     return extractPersonaResponse(reply, rafaConfig);

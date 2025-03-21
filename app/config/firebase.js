@@ -1,21 +1,23 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import Constants from 'expo-constants';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from 'react-native';
 
 // Your web app's Firebase configuration
 // Using environment variables for sensitive information
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || Constants.expoConfig?.extra?.firebaseApiKey,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || Constants.expoConfig?.extra?.firebaseAuthDomain,
+  apiKey: process.env.FIREBASE_API_KEY || Constants.expoConfig?.extra?.firebaseApiKey || "dummy-api-key",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || Constants.expoConfig?.extra?.firebaseAuthDomain || "dummy-domain.firebaseapp.com",
   databaseURL: process.env.FIREBASE_DATABASE_URL || Constants.expoConfig?.extra?.firebaseDatabaseURL,
-  projectId: process.env.FIREBASE_PROJECT_ID || Constants.expoConfig?.extra?.firebaseProjectId,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || Constants.expoConfig?.extra?.firebaseStorageBucket,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || Constants.expoConfig?.extra?.firebaseMessagingSenderId,
-  appId: process.env.FIREBASE_APP_ID || Constants.expoConfig?.extra?.firebaseAppId,
+  projectId: process.env.FIREBASE_PROJECT_ID || Constants.expoConfig?.extra?.firebaseProjectId || "dummy-project",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || Constants.expoConfig?.extra?.firebaseStorageBucket || "dummy-storage.appspot.com",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || Constants.expoConfig?.extra?.firebaseMessagingSenderId || "000000000000",
+  appId: process.env.FIREBASE_APP_ID || Constants.expoConfig?.extra?.firebaseAppId || "1:000000000000:web:00000000000000",
   measurementId: process.env.FIREBASE_MEASUREMENT_ID || Constants.expoConfig?.extra?.firebaseMeasurementId
 };
 
@@ -30,8 +32,16 @@ try {
   // Initialize Firebase
   app = initializeApp(firebaseConfig);
   
+  // Initialize Firebase Authentication with AsyncStorage persistence for React Native
+  if (Platform.OS !== 'web') {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  } else {
+    auth = getAuth(app);
+  }
+  
   // Initialize Firebase services
-  auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
   
@@ -127,4 +137,7 @@ try {
   }
 }
 
-export { app, auth, db, storage, analytics }; 
+export { app, auth, db, storage, analytics };
+
+// Default export
+export default { app, auth, db, storage, analytics }; 

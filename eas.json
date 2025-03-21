@@ -13,7 +13,7 @@
     "production": {
       "autoIncrement": true
     },
-    "simulator": {
+    "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -30,4 +30,4 @@
       }
     }
   }
-} 
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyledView, StyledText, StyledTouchableOpacity, StyledSafeAreaView } from '../components/chat/StyledComponents';
@@ -7,12 +7,16 @@ import VoiceVisualization from '../components/chat/VoiceVisualization';
 import QuickReplies from '../components/chat/QuickReplies';
 import VoiceControls from '../components/chat/VoiceControls';
 import useVoiceAnimation from '../components/chat/useVoiceAnimation';
+import LiveKitProvider, { useLiveKit } from '../components/livekit/LiveKitProvider';
 
-const Chat = () => {
+// Inner component that uses LiveKit context
+const ChatContent = () => {
   const router = useRouter();
   const [isListening, setIsListening] = useState(false);
-  const [activeAI, setActiveAI] = useState('adina'); // 'adina' or 'rafa'
   const [showQuickReplies, setShowQuickReplies] = useState(true);
+  
+  // Access LiveKit context
+  const { activeAgent, setActiveAgent } = useLiveKit();
   
   // Quick reply suggestions
   const quickReplies = [
@@ -35,9 +39,11 @@ const Chat = () => {
   const handleBibleNavigation = () => {
     // Navigate to Bible tab
     router.push('/bible');
-    
-    // We don't need to stop listening here as the voice state
-    // should persist across tabs if that's the desired behavior
+  };
+
+  // Handle AI toggle change
+  const handleAIChange = (agent) => {
+    setActiveAgent(agent);
   };
 
   return (
@@ -58,13 +64,13 @@ const Chat = () => {
         
         {/* AI Toggle Switch */}
         <StyledView className="flex-row justify-center my-2">
-          <AIToggle activeAI={activeAI} setActiveAI={setActiveAI} />
+          <AIToggle activeAI={activeAgent} setActiveAI={handleAIChange} />
         </StyledView>
       </StyledView>
 
       {/* Main Content - Voice Interaction Area */}
       <VoiceVisualization 
-        activeAI={activeAI}
+        activeAI={activeAgent}
         isListening={isListening}
         blobScale={blobScale}
         glowOpacity={glowOpacity}
@@ -75,18 +81,27 @@ const Chat = () => {
 
       {/* Quick Reply Suggestions */}
       {showQuickReplies && (
-        <QuickReplies activeAI={activeAI} quickReplies={quickReplies} />
+        <QuickReplies activeAI={activeAgent} quickReplies={quickReplies} />
       )}
 
       {/* Voice Controls */}
       <VoiceControls 
         isListening={isListening}
         setIsListening={setIsListening}
-        activeAI={activeAI}
+        activeAI={activeAgent}
         showQuickReplies={showQuickReplies}
         setShowQuickReplies={setShowQuickReplies}
       />
     </StyledSafeAreaView>
+  );
+};
+
+// Main Chat component that wraps everything in LiveKitProvider
+const Chat = () => {
+  return (
+    <LiveKitProvider>
+      <ChatContent />
+    </LiveKitProvider>
   );
 };
 

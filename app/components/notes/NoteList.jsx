@@ -105,7 +105,7 @@ const NoteList = () => {
           </TouchableOpacity>
         </View>
         <Text className="text-xs text-gray-500 mb-1">{date}</Text>
-        <Text className="text-sm text-gray-500 line-clamp-2">{preview}</Text>
+        <Text className="text-sm text-gray-500" numberOfLines={2}>{preview}</Text>
       </TouchableOpacity>
     );
   };

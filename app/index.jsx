@@ -1,3 +1,4 @@
+import 'react-native-reanimated';
 import { View, Text, TouchableOpacity } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";

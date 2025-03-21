@@ -12,7 +12,7 @@ module.exports = function (api) {
         "allowUndefined": true
       }],
       'nativewind/babel',
-      'react-native-reanimated/plugin'
+      'react-native-reanimated/plugin',
     ],
   };
 };

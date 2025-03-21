@@ -10,4 +10,14 @@ export const StyledSafeAreaView = styled(SafeAreaView);
 export const StyledAnimated = styled(Animated.View);
 
 // Style the LinearGradient
-export const StyledGradient = styled(LinearGradient); 
+export const StyledGradient = styled(LinearGradient);
+
+// Default export for all styled components
+export default {
+  StyledView,
+  StyledText,
+  StyledTouchableOpacity,
+  StyledSafeAreaView,
+  StyledAnimated,
+  StyledGradient
+}; 

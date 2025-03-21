@@ -21,11 +21,15 @@ export default function TabLayout() {
 
   const handleTabChange = (tabId) => {
     if (tabId === 'index') {
-      router.push('/(tabs)'); // Navigate to home tab
+      router.replace('/(tabs)/'); // Navigate to home tab with replace to avoid stacking
     } else if (tabId === 'study') {
-      router.push('/(tabs)/study/'); // Navigate to study directory index
+      router.replace('/(tabs)/study/'); // Navigate to study directory index with replace
+    } else if (tabId === 'bible') {
+      router.replace('/(tabs)/bible'); // Navigate to bible with replace
+    } else if (tabId === 'chat') {
+      router.replace('/(tabs)/chat'); // Navigate to chat with replace
     } else {
-      router.push(`/(tabs)/${tabId}`); // Navigate to other tabs
+      router.replace(`/(tabs)/${tabId}`); // Navigate to other tabs with replace
     }
   };
 

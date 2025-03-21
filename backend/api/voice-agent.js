@@ -4,6 +4,7 @@
  */
 
 const { createVoiceAgent, startVoiceAgentSession } = require('../livekit/voice-agent');
+const { AccessToken } = require('livekit-server-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 // Store active agent sessions
@@ -88,20 +89,35 @@ async function getToken(req, res) {
       return res.status(400).json({ error: 'Room name and participant name are required' });
     }
     
-    // Check if the room exists
-    if (!activeSessions.has(roomName)) {
-      return res.status(404).json({ error: 'Session not found' });
+    // Create a new token
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    
+    if (!apiKey || !apiSecret) {
+      return res.status(500).json({ error: 'LiveKit API key or secret not configured' });
     }
     
-    // TODO: Generate a LiveKit token for the client
-    // This is a placeholder - you'll need to implement actual token generation
-    // using the LiveKit SDK
-    const token = 'placeholder-token';
+    // Create access token with identity
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: participantName,
+    });
+    
+    // Grant permissions to join room
+    at.addGrant({
+      roomJoin: true,
+      room: roomName,
+      canPublish: true,
+      canSubscribe: true,
+    });
+    
+    // Generate token
+    const token = at.toJwt();
     
     return res.status(200).json({
       token,
       roomName,
       participantName,
+      url: process.env.LIVEKIT_WS_URL
     });
   } catch (error) {
     console.error('Error generating LiveKit token:', error);
