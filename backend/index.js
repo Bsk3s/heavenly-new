@@ -12,7 +12,6 @@ const path = require('path');
 // Import API handlers
 const { handleAdinaChat } = require('./api/chat-adina');
 const { handleRafaChat } = require('./api/chat-rafa');
-const { transcribeAudio } = require('./api/whisper-transcribe');
 const { startSession, endSession, getToken } = require('./api/voice-agent');
 
 // Initialize Express app
@@ -31,17 +30,18 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+// Set up API routes
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'HeavenlyHub Backend API',
+    status: 'online',
+    version: '1.0'
+  });
 });
 
-// Chat API endpoints
+// Chat endpoints
 app.post('/api/chat/adina', handleAdinaChat);
 app.post('/api/chat/rafa', handleRafaChat);
-
-// Whisper transcription endpoint
-app.post('/api/transcribe', upload.single('audio'), transcribeAudio);
 
 // LiveKit voice agent endpoints
 app.post('/api/voice/start', startSession);

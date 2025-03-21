@@ -3,15 +3,23 @@
  * Handles API interactions for the Rafa persona chat functionality
  */
 
-const OpenAI = require('openai');
+let openai;
+try {
+  // Try OpenAI v3 format first
+  const { Configuration, OpenAIApi } = require('openai');
+  const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  openai = new OpenAIApi(configuration);
+} catch (error) {
+  console.error('Error initializing OpenAI v3 format:', error);
+  // Fallback to another approach if needed
+  throw new Error('Failed to initialize OpenAI. Check API key and SDK version.');
+}
+
 const { injectPersonaPrompt, extractPersonaResponse } = require('../utils/injectPersonaPrompt');
 const { streamToTTS } = require('../utils/streamToTTS');
 const rafaConfig = require('../config/rafa_agent.json');
-
-// Initialize OpenAI with the new library format
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_SECRET_API_KEY,
-});
 
 /**
  * Process a chat message with the Rafa persona
@@ -58,7 +66,7 @@ async function handleRafaChat(req, res) {
  */
 async function callLLMService(systemPrompt, userMessage, sessionId) {
   try {
-    const gptResponse = await openai.chat.completions.create({
+    const gptResponse = await openai.createChatCompletion({
       model: 'gpt-3.5-turbo',
       messages: [
         { role: 'system', content: systemPrompt },
@@ -67,7 +75,7 @@ async function callLLMService(systemPrompt, userMessage, sessionId) {
       temperature: 0.8,
     });
 
-    const reply = gptResponse.choices[0].message.content;
+    const reply = gptResponse.data.choices[0].message.content;
     
     // Clean up the response if needed
     return extractPersonaResponse(reply, rafaConfig);

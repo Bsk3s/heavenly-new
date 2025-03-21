@@ -5,20 +5,29 @@
 
 const { Room, RoomEvent, RemoteParticipant, RemoteTrackPublication, RemoteTrack } = require('livekit-server-sdk');
 const { Deepgram } = require('@deepgram/sdk');
-const OpenAI = require('openai');
 const axios = require('axios');
 const WebSocket = require('ws');
 const adinaConfig = require('../config/adina_agent.json');
 const rafaConfig = require('../config/rafa_agent.json');
 
-// Initialize Deepgram with the newer SDK format
+// Initialize Deepgram with v1 SDK format
 const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
 const deepgram = new Deepgram(deepgramApiKey);
 
-// Initialize OpenAI with the new library format
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_SECRET_API_KEY,
-});
+// Initialize OpenAI with better error handling
+let openai;
+try {
+  // Try OpenAI v3 format first
+  const { Configuration, OpenAIApi } = require('openai');
+  const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  openai = new OpenAIApi(configuration);
+} catch (error) {
+  console.error('Error initializing OpenAI v3 format:', error);
+  // Fallback to another approach if needed
+  throw new Error('Failed to initialize OpenAI. Check API key and SDK version.');
+}
 
 // Active connections for audio processing
 const activeConnections = new Map();
@@ -63,15 +72,14 @@ async function processAudioStream(audioChunk, connection) {
     if (!connection.deepgramSocket) {
       // Create Deepgram WebSocket for real-time transcription
       const deepgramOptions = {
-        model: 'nova-2',
         language: 'en',
         smart_format: true,
         interim_results: true,
         punctuate: true,
       };
       
-      // Get a live transcription connection
-      connection.deepgramSocket = await deepgram.listen.live(deepgramOptions);
+      // Get a live transcription connection with v1 SDK
+      connection.deepgramSocket = await deepgram.transcription.live(deepgramOptions);
       
       // Listen for transcription results
       connection.deepgramSocket.addListener('transcriptReceived', async (transcription) => {
@@ -83,9 +91,14 @@ async function processAudioStream(audioChunk, connection) {
           // If not already processing, send to OpenAI
           if (!connection.isProcessing && connection.transcript.trim().length > 0) {
             connection.isProcessing = true;
-            await processTranscriptWithAI(connection);
-            connection.isProcessing = false;
-            connection.transcript = '';
+            try {
+              await processTranscriptWithAI(connection);
+              connection.isProcessing = false;
+              connection.transcript = '';
+            } catch (error) {
+              console.error('Error processing transcript with AI:', error);
+              connection.isProcessing = false;
+            }
           }
         }
       });
@@ -101,15 +114,15 @@ async function processAudioStream(audioChunk, connection) {
 }
 
 /**
- * Process transcript with OpenAI and convert to speech
+ * Process a transcript with AI to generate a response
  * @param {Object} connection - Connection details
  */
 async function processTranscriptWithAI(connection) {
   try {
     const { persona, personaConfig, transcript } = connection;
     
-    // Get AI response using OpenAI with new library format
-    const response = await openai.chat.completions.create({
+    // Get AI response using OpenAI with v3 SDK format
+    const response = await openai.createChatCompletion({
       model: process.env.OPENAI_MODEL || "gpt-4",
       messages: [
         { role: "system", content: personaConfig.systemPrompt },
@@ -119,43 +132,24 @@ async function processTranscriptWithAI(connection) {
       temperature: 0.7,
     });
     
-    const aiText = response.choices[0].message.content;
+    const aiText = response.data.choices[0].message.content;
     
     // Get voice ID based on persona
     const voiceId = persona.toLowerCase() === 'adina' 
-      ? process.env.ADINA_VOICE_ID 
-      : process.env.RAFA_VOICE_ID;
+      ? process.env.ELEVENLABS_ADINA_VOICE_ID 
+      : process.env.ELEVENLABS_RAFA_VOICE_ID;
+
+    if (!voiceId) {
+      throw new Error(`No voice ID configured for persona: ${persona}`);
+    }
     
-    // Convert to speech using ElevenLabs
-    const elevenLabsResponse = await axios({
-      method: 'post',
-      url: `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
-      headers: {
-        'Accept': 'audio/mpeg',
-        'xi-api-key': process.env.ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        text: aiText,
-        model_id: 'eleven_monolingual_v1',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.0,
-          use_speaker_boost: true
-        }
-      },
-      responseType: 'arraybuffer'
-    });
+    // Convert AI text to speech using ElevenLabs
+    const audioBuffer = await textToSpeech(aiText, voiceId);
     
-    // TODO: Send the audio back to the LiveKit room
-    // This will require additional implementation to publish audio track to LiveKit
-    console.log(`Generated response for ${persona}: "${aiText}"`);
-    
-    return aiText;
+    return { text: aiText, audioBuffer };
   } catch (error) {
     console.error('Error processing transcript with AI:', error);
-    return null;
+    throw new Error('Failed to process transcript with AI');
   }
 }
 
@@ -195,6 +189,45 @@ function cleanupVoiceAgent(connectionId) {
     activeConnections.delete(connectionId);
     
     console.log(`Cleaned up voice agent: ${connectionId}`);
+  }
+}
+
+/**
+ * Convert text to speech using ElevenLabs
+ * @param {string} text - The text to convert to speech
+ * @param {string} voiceId - The ElevenLabs voice ID to use
+ * @returns {Promise<Buffer>} - The audio buffer
+ */
+async function textToSpeech(text, voiceId) {
+  try {
+    // Convert to speech using ElevenLabs
+    const elevenLabsResponse = await axios({
+      method: 'post',
+      url: `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      headers: {
+        'Accept': 'audio/mpeg',
+        'xi-api-key': process.env.ELEVENLABS_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      data: {
+        text: text,
+        model_id: 'eleven_monolingual_v1',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.0,
+          use_speaker_boost: true
+        }
+      },
+      responseType: 'arraybuffer'
+    });
+    
+    console.log(`Generated audio response with ElevenLabs`);
+    
+    return elevenLabsResponse.data;
+  } catch (error) {
+    console.error('Error converting text to speech:', error);
+    throw new Error('Failed to convert text to speech');
   }
 }
 
