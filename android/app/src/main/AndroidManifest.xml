@@ -26,8 +26,8 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="myapp"/>
-        <data android:scheme="com.bsk3s.HeavenlyBible"/>
+        <data android:scheme="com.heavenlyhub.app"/>
+        <data android:scheme="com.heavenlyhub.app"/>
       </intent-filter>
     </activity>
   </application>

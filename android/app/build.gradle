@@ -86,9 +86,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.bsk3s.HeavenlyBible'
+    namespace 'com.heavenlyhub.app'
     defaultConfig {
-        applicationId 'com.bsk3s.HeavenlyBible'
+        applicationId 'com.heavenlyhub.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

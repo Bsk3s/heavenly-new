@@ -1000,7 +1000,8 @@ const Bible = () => {
   );
 };
 
-export default function BibleScreen() {
+// Named function instead of default export function
+function BibleScreen() {
   return (
     <SafeAreaProvider>
       <VersesProvider>
@@ -1011,3 +1012,5 @@ export default function BibleScreen() {
     </SafeAreaProvider>
   );
 }
+
+export default BibleScreen;

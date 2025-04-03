@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native'
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-const TabBar = ({ activeTab, onTabChange }) => {
+function TabBar({ activeTab, onTabChange }) {
   const { width } = useWindowDimensions();
 
   const tabs = [
@@ -70,7 +70,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
       </View>
     </View>
   );
-};
+}
 
 export default TabBar;
 

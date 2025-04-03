@@ -1,46 +1,62 @@
 {
   "expo": {
-    "name": "HeavenlyBible",
-    "slug": "heavenly-new",
+    "name": "Heavenly Hub",
+    "slug": "heavenly-hub",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "icon": "./assets/images/H-B.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/HBMAIN1.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bsk3s.HeavenlyBible",
+      "bundleIdentifier": "com.heavenlyhub.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
-      }
+        "NSMicrophoneUsageDescription": "Heavenly Hub needs access to your microphone for voice chat",
+        "UIBackgroundModes": ["audio"],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "appleTeamId": "KPK3ML72VB"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/H-B.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bsk3s.HeavenlyBible"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "package": "com.heavenlyhub.app",
+      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
     },
     "plugins": [
-      "expo-router",
       [
-        "expo-splash-screen",
+        "expo-av",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "microphonePermission": "Heavenly Hub needs access to your microphone for voice chat."
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "scheme": "com.heavenlyhub.app",
+    "extra": {
+      "apiUrl": "https://b7a1-2a00-23c7-db2-4100-54b6-755-55a5-2303.ngrok-free.app",
+      "environment": "development",
+      "livekit": {
+        "wsUrl": "wss://hb-j73yzwmu.livekit.cloud",
+        "apiKey": "APIAt3A2sFzLdkN",
+        "roomName": "hb_room_52"
+      },
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "1bd8346d-045b-4160-935a-026fc36c0d52"
+      }
+    },
+    "owner": "bsk3s"
   }
 }

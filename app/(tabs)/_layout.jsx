@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Menu } from 'lucide-react-native';
 import TabBar from '../components/tabs/TabBar';
 
-export default function TabLayout() {
+// Create a named export first
+function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -59,3 +60,6 @@ export default function TabLayout() {
     </View>
   );
 }
+
+// Then export it as default 
+export default TabLayout;
