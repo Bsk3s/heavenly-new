@@ -489,7 +489,7 @@ const Bible = () => {
     </TouchableOpacity>
   );
 
-  // Add scroll handler
+  // Use the built-in Reanimated scroll handler
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
@@ -836,7 +836,10 @@ const Bible = () => {
             onScroll={scrollHandler}
             scrollEventThrottle={16}
             className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: HORIZONTAL_PADDING }}
+            contentContainerStyle={{ 
+              paddingHorizontal: HORIZONTAL_PADDING,
+              paddingBottom: 100 // Add padding for floating buttons
+            }}
             onMomentumScrollEnd={(event) => {
               // Check if we're at the bottom when scrolling ends
               const offsetY = event.nativeEvent.contentOffset.y;
@@ -844,7 +847,6 @@ const Bible = () => {
               const layoutHeight = event.nativeEvent.layoutMeasurement.height;
               
               // If we're near the bottom (within 20px), update the scrollY value
-              // This will help the FloatingNavigation component detect when we're at the bottom
               if (offsetY + layoutHeight >= contentHeight - 20) {
                 // We're at the bottom
                 scrollY.value = offsetY;

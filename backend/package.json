@@ -1,0 +1,37 @@
+{
+  "name": "heavenlyhub-backend",
+  "version": "1.0.0",
+  "description": "Backend services for HeavenlyHub application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test-livekit": "node test-livekit-local.js"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^1.21.0",
+    "@livekit/agents": "^0.2.0",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.2.0",
+    "get-random-values": "^3.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "livekit-client": "^2.9.8",
+    "livekit-server-sdk": "^1.2.7",
+    "long": "^5.3.1",
+    "mkcert": "^3.2.0",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.90.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0 <24.0.0"
+  }
+}

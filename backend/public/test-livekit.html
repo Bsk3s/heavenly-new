@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>LiveKit Connection Test</title>
+    <script type="module">
+      import {
+        Room,
+        RoomEvent,
+      } from "https://unpkg.com/livekit-client@1.15.5/dist/livekit-client.esm.mjs";
+
+      let room;
+      let testToken;
+      let wsUrl;
+
+      window.testBackendConnection = async function () {
+        try {
+          log("Testing backend connection...");
+          const response = await fetch("/api/voice/test-connection");
+          const data = await response.json();
+
+          if (data.success) {
+            log("✓ Backend connection successful");
+            testToken = data.testToken;
+            wsUrl = data.config.wsUrl;
+            document.getElementById("connectBtn").disabled = false;
+
+            // Log the full configuration for debugging
+            log("Configuration received:");
+            log(`API Key: ${data.config.apiKey}`);
+            log(`WebSocket URL: ${wsUrl}`);
+            log(`Token (first 50 chars): ${testToken.substring(0, 50)}...`);
+
+            // Parse and validate the token
+            try {
+              const tokenParts = testToken.split(".");
+              const tokenPayload = JSON.parse(atob(tokenParts[1]));
+              log("Token payload:");
+              log(JSON.stringify(tokenPayload, null, 2));
+            } catch (e) {
+              log("Failed to parse token: " + e.message, true);
+            }
+          } else {
+            throw new Error(data.error);
+          }
+        } catch (error) {
+          log("✗ Backend connection failed: " + error.message, true);
+        }
+      };
+
+      window.testLiveKitConnection = async function () {
+        try {
+          if (!testToken || !wsUrl) {
+            throw new Error("Please test backend connection first");
+          }
+
+          log("Connecting to LiveKit...");
+          log(`Using WebSocket URL: ${wsUrl}`);
+
+          // Create room with debug logging
+          room = new Room({
+            adaptiveStream: false,
+            dynacast: false,
+            stopLocalTrackOnUnpublish: false,
+          });
+
+          // Add event listeners
+          room.on(RoomEvent.Connected, () => {
+            log("✓ Successfully connected to LiveKit room");
+            document.getElementById("disconnectBtn").disabled = false;
+            document.getElementById("connectBtn").disabled = true;
+          });
+
+          room.on(RoomEvent.Disconnected, () => {
+            log("Disconnected from LiveKit room");
+            document.getElementById("disconnectBtn").disabled = true;
+            document.getElementById("connectBtn").disabled = false;
+          });
+
+          room.on(RoomEvent.ConnectionStateChanged, (state) => {
+            log(`Connection state changed to: ${state}`);
+          });
+
+          // Connect with minimal options
+          await room.connect(wsUrl, testToken);
+        } catch (error) {
+          log("✗ LiveKit connection failed: " + error.message, true);
+          console.error("Connection error:", error);
+          document.getElementById("connectBtn").disabled = false;
+        }
+      };
+
+      window.disconnect = async function () {
+        if (room) {
+          await room.disconnect();
+          log("Disconnected from room");
+        }
+      };
+
+      function log(message, isError = false) {
+        const logEl = document.getElementById("log");
+        const statusEl = document.getElementById("status");
+
+        const timestamp = new Date().toISOString();
+        const logMessage = `[${timestamp}] ${message}`;
+
+        logEl.innerHTML += logMessage + "\n";
+        statusEl.innerHTML = message;
+        statusEl.className = "status " + (isError ? "error" : "success");
+
+        console.log(logMessage);
+        if (isError) {
+          console.error(message);
+        }
+      }
+
+      // Log that the module loaded successfully
+      log("✓ LiveKit client module loaded successfully");
+    </script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .status {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #e6ffe6;
+        color: #006600;
+      }
+      .error {
+        background: #ffe6e6;
+        color: #660000;
+      }
+      .log {
+        font-family: monospace;
+        margin: 10px 0;
+        padding: 10px;
+        background: #f0f0f0;
+      }
+      button {
+        padding: 10px;
+        margin: 5px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>LiveKit Connection Test</h1>
+
+    <div>
+      <button onclick="testBackendConnection()">
+        1. Test Backend Connection
+      </button>
+      <button onclick="testLiveKitConnection()" disabled id="connectBtn">
+        2. Test LiveKit Connection
+      </button>
+      <button onclick="disconnect()" disabled id="disconnectBtn">
+        3. Disconnect
+      </button>
+    </div>
+
+    <div id="status"></div>
+    <pre id="log"></pre>
+  </body>
+</html>
