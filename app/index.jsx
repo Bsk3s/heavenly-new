@@ -2,24 +2,25 @@ import 'react-native-get-random-values';
 import 'react-native-url-polyfill';
 
 // Remove the direct reanimated import as it should be initialized properly via babel plugin
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, LogBox, Alert } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import useRotatingText from "./hooks/useRotatingText";
-import useTypingText from "./hooks/useTypingText";
+import useRotatingText from "@src/hooks/useRotatingText";
+import useTypingText from "@src/hooks/useTypingText";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
 import Button from "./components/button";
 import SignInSlider from "./components/sign-in-slider";
 import SignUpSlider from "./components/Sign-up-slider";
 import { Link } from "expo-router";
 import { styled } from "nativewind";
+import { supabase } from '../src/auth/supabase-client';
 
 // Disable any yellow box warnings for debugging
 LogBox.ignoreAllLogs();
 
-export default function Index() {
+function Index() {
   const [error, setError] = useState(null);
   
   try {
@@ -42,18 +43,55 @@ export default function Index() {
 
     const checkAuthStatus = async () => {
       try {
+        console.log('🔍 Checking auth status on app startup...');
+        
+        // First check AsyncStorage for quick determination
         const isAuthenticated = await AsyncStorage.getItem('isAuthenticated');
+        console.log('💾 AsyncStorage isAuthenticated:', isAuthenticated);
+        
         const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
-
-        if (isAuthenticated === 'true') {
+        console.log('📋 Onboarding completed:', onboardingCompleted);
+        
+        // Then double-check with Supabase API for source of truth
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ Error getting Supabase session:', error);
+          throw error;
+        }
+        
+        const hasValidSession = !!data?.session;
+        console.log('🔐 Supabase session exists:', hasValidSession);
+        
+        if (hasValidSession) {
+          console.log('👤 Logged in user:', data.session.user.email);
+          
+          // If AsyncStorage is inconsistent with Supabase, fix it
+          if (isAuthenticated !== 'true') {
+            console.log('⚠️ AsyncStorage auth state inconsistent, updating to true');
+            await AsyncStorage.setItem('isAuthenticated', 'true');
+          }
+          
+          // Navigate based on onboarding status
           if (onboardingCompleted === 'true') {
+            console.log('✅ Auth check complete - redirecting to main app');
             router.replace('(tabs)');
           } else {
+            console.log('✅ Auth check complete - redirecting to onboarding');
             router.replace('/(onboarding)/denomination');
+          }
+        } else {
+          // No valid session found
+          console.log('👋 No active session found - staying on welcome screen');
+          
+          // If AsyncStorage incorrectly says we're authenticated, fix it
+          if (isAuthenticated === 'true') {
+            console.log('⚠️ AsyncStorage incorrectly set to authenticated, fixing...');
+            await AsyncStorage.setItem('isAuthenticated', 'false');
           }
         }
       } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error('❌ Error checking auth status:', error);
         setError(error.message);
         Alert.alert('Auth Check Error', error.message);
       }
@@ -152,3 +190,5 @@ export default function Index() {
     );
   }
 } 
+
+export default Index; 
